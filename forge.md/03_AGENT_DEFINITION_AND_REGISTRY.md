@@ -2,7 +2,7 @@
 
 ## Key Principle
 
-FORGE V1 does not require developers to bring a fully running agent. They create an **Agent Definition** and FORGE manages a LangGraph-powered runtime with LangChain agent/model integrations.
+FORGE V1 does not require developers to bring a fully running agent. They create an **Agent Definition** and FORGE owns the runtime and state machine.
 
 ## Agent Definition Contains
 
@@ -106,7 +106,7 @@ The developer supplies custom integration code/API, but FORGE still controls sch
 
 Runnable configuration is immutable from creation, including tool, policy, model configuration, and evaluation-suite version bindings. Lifecycle status is mutable operational metadata changed only through validated transitions. Production deployment membership is determined by deployments, not lifecycle status alone. See `12_ARCHITECTURE_DECISIONS.md`.
 
-Agent versions also pin a runtime template revision. Runs record the actual runtime build/framework versions so checkpoint recovery uses compatible code. See `13_LANGCHAIN_LANGGRAPH_RUNTIME.md`.
+Agent versions also pin a runtime template revision. Runs record the actual runtime build versions so checkpoint recovery uses compatible code. See `14_FORGE_RUNTIME_DECISION.md`.
 
 ## Phase 2 Registry Contract
 

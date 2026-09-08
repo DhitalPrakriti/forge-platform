@@ -1,0 +1,58 @@
+name: Frontend
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  console:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: forge
+          POSTGRES_PASSWORD: forge_ci
+          POSTGRES_DB: forge_frontend_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U forge -d forge_frontend_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      FORGE_DATABASE_URL: postgresql+asyncpg://forge:forge_ci@127.0.0.1:5433/forge_frontend_test
+      FORGE_ENVIRONMENT: test
+      FORGE_MODEL_BACKEND: fake
+      FORGE_API_URL: http://127.0.0.1:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prepare backend
+        working-directory: .
+        run: |
+          pip install uv==0.12.10
+          uv sync --frozen
+          uv run alembic upgrade head
+          uv run uvicorn forge.main:create_app --factory --host 127.0.0.1 --port 8000 > /tmp/forge-frontend-api.log 2>&1 &
+          curl --fail --retry 15 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/api/v1/health/ready
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-test-results
+          path: web/test-results/

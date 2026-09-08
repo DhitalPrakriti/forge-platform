@@ -1,5 +1,7 @@
 # LangChain/LangGraph adoption session
 
+> **SUPERSEDED 2026-09-06:** The user reversed this adoption. This document is historical, not implementation instructions. Current design: [FORGE runtime decision](../forge.md/14_FORGE_RUNTIME_DECISION.md).
+
 ## 1. Functionality / scope
 
 Documentation-only architecture change authorized by the user. Adopt LangChain `create_agent` on LangGraph, official model/tool integrations, framework checkpoints, and interrupt/resume. FORGE retains its deterministic platform services. Establish a persistent code-review process for each session. Current application functionality remains Phase 1; framework packages will be installed when implementing Phase 3 and subsequent phases.

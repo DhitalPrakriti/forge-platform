@@ -39,7 +39,7 @@ limits
 evaluation suite
 ```
 
-FORGE supplies the runtime and operations layer, using LangGraph for execution and LangChain for the standard agent loop and model integrations.
+FORGE supplies its own runtime and operations layer; no agent framework or graph database is required for V1.
 
 ## Example Definition
 

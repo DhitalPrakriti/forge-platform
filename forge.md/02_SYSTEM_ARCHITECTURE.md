@@ -16,7 +16,7 @@
              │              │              │
              └──────────────┼──────────────┘
                             ▼
-                     LangGraph Engine
+                     Workflow Engine
                             │
                 ┌───────────┼───────────┐
                 ▼           ▼           ▼
@@ -97,7 +97,7 @@ Client request
 → create run in Postgres
 → enqueue
 → worker locks run
-→ runtime loads pinned config into LangChain create_agent / LangGraph
+→ FORGE runtime loads pinned configuration
 → model router calls provider
 → LLM returns text/tool request
 → Tool Hub validates
@@ -146,11 +146,8 @@ Alembic
 PostgreSQL
 Redis
 Cloud Tasks or Dramatiq
-LangGraph
-LangChain (create_agent, messages, tools, middleware)
-LangChain Gemini integration
-LangChain OpenAI integration
-LangGraph PostgreSQL checkpointer
+Gemini provider SDK behind adapter
+OpenAI provider SDK behind adapter
 OpenTelemetry
 pytest
 Docker
@@ -164,8 +161,8 @@ Secret Manager
 
 Use a `src/forge` package, an application factory with lifespan-managed database resources, PostgreSQL 16 for local/CI development, and asyncpg behind SQLAlchemy async sessions. Alembic owns schema changes and runs separately from API startup. Dependency resolution is committed in `uv.lock`. Phase 1 deploys only API and PostgreSQL; worker/Redis/queue arrive in Phase 6. See `12_ARCHITECTURE_DECISIONS.md`.
 
-## Framework Ownership
+## Runtime Ownership
 
-Use LangChain `create_agent` (built on LangGraph) for the standard model/tool loop. FORGE services supply versioned configuration and deterministic tool middleware/wrappers. LangGraph owns graph scheduling, checkpoint state, and interrupt/resume. `runtime/` contains the integration; do not add a separate workflow engine. Use an explicit `StateGraph` only when a documented requirement cannot be expressed clearly with standard agents/middleware.
+FORGE owns the execution loop, state transitions, checkpointing, and approval pause/resume. Keep the initial implementation small in `runtime/`; workflow behavior belongs there until a concrete need justifies another module. Provider SDKs stay behind adapters. PostgreSQL stores platform and execution state through SQLAlchemy/Alembic; Redis supports coordination when introduced in Phase 6.
 
-FORGE owns database run status, tool/approval records, authorization, limits, queue delivery, evaluation, and deployment decisions. LangGraph checkpoints use its PostgreSQL checkpointer; FORGE domain tables remain SQLAlchemy/Alembic-owned. See `13_LANGCHAIN_LANGGRAPH_RUNTIME.md` for consistency boundaries and staged adoption. Open-source packages run inside our API/worker; a hosted LangSmith service is not required.
+LangChain/LangGraph are optional future adapter candidates, not V1 dependencies. No graph database is required. See `14_FORGE_RUNTIME_DECISION.md`.

@@ -1,7 +1,8 @@
 # FORGE Engineering Specification Pack
 
 **Project:** FORGE — AI Agent Platform Control Plane  
-**Version:** 0.3  
+**Version:** 0.4
+
 **Purpose:** Source-of-truth architecture and implementation pack for human + Codex development.
 
 ## Canonical Product Statement
@@ -81,7 +82,7 @@ BLOCK  APPROVE
 ## Non-Negotiable Architecture Rules
 
 1. FORGE is a platform, not one support agent.
-2. V1 uses a FORGE-managed runtime powered by LangGraph and LangChain agent/model integrations; do not build a parallel manual agent loop.
+2. V1 uses a FORGE-owned runtime and state machine. LangChain/LangGraph are not required dependencies.
 3. Agent versions are immutable.
 4. PostgreSQL is durable truth.
 5. Redis is coordination/cache, never the only durable source of important state.
@@ -106,5 +107,9 @@ Read `12_ARCHITECTURE_DECISIONS.md` alongside the relevant phase specification. 
 
 ## Runtime and Review Guides
 
-- `13_LANGCHAIN_LANGGRAPH_RUNTIME.md`: framework choice, ownership, persistence, and phase integration.
+- `14_FORGE_RUNTIME_DECISION.md`: current runtime ownership, persistence, and phase integration.
+- `13_LANGCHAIN_LANGGRAPH_RUNTIME.md`: superseded adoption record only.
 - `../docs/CODE_REVIEW_GUIDE.md`: directory map and session review order.
+- `FORGE_FRONTEND_SPEC.md`: full frontend blueprint and the current local testing slice.
+- `../docs/FRONTEND_LOCAL_CONSOLE_SESSION.md`: supported F1–F3 implementation, review map, and verification.
+- `../docs/PHASE_4_IMPLEMENTATION_REPORT.md`: local Tool Hub, bounded model/tool loop, console extension, and review walkthrough.

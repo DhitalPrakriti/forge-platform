@@ -6,6 +6,8 @@ from fastapi import FastAPI, Request
 
 from forge.api.health import router
 from forge.api.registry import router as registry_router
+from forge.api.runs import router as runs_router
+from forge.api.tools import router as tools_router
 from forge.core.config import Settings
 from forge.core.errors import error_response, install_error_handlers
 from forge.db.session import Database
@@ -44,4 +46,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app)
     app.include_router(router, prefix="/api/v1")
     app.include_router(registry_router, prefix="/api/v1")
+    app.include_router(runs_router, prefix="/api/v1")
+    app.include_router(tools_router, prefix="/api/v1")
     return app

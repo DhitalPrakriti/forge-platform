@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from forge.agents import models  # noqa: F401 -- register domain metadata
 from forge.core.config import Settings
 from forge.db.base import Base
+from forge.runtime import models as runtime_models  # noqa: F401 -- register runtime metadata
+from forge.tools import models as tool_models  # noqa: F401 -- register tool metadata
 
 
 def migrate(connection):

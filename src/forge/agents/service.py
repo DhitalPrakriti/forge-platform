@@ -8,6 +8,8 @@ from forge.agents.models import Agent, AgentVersion, Organization
 from forge.agents.repository import RegistryRepository
 from forge.agents.schemas import AgentCreate, AgentPatch, OrganizationCreate, VersionCreate
 from forge.core.errors import DomainError
+from forge.tools.models import AgentTool
+from forge.tools.registry import ToolRegistry
 
 
 class RegistryService:
@@ -65,10 +67,20 @@ class RegistryService:
         agent = await self.agent(organization_id, agent_id, lock=True)
         if agent.status != "ACTIVE":
             raise DomainError("AGENT_INACTIVE", "Cannot version an inactive agent.", 409)
+        tools = await ToolRegistry(self.session).resolve(organization_id, payload.tool_version_ids)
         config = payload.model_dump(mode="json")
         config["evaluation_suite_version_id"] = payload.evaluation_suite_version_id
         entity = AgentVersion(agent_id=agent_id, **config)
         self.repository.add(entity)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            if getattr(exc.orig, "sqlstate", None) == "23505":
+                raise DomainError("VERSION_EXISTS", "This identifier already exists.", 409) from exc
+            raise
+        for tool in tools:
+            self.session.add(AgentTool(agent_version_id=entity.id, tool_id=tool.id))
         await self.commit("VERSION_EXISTS")
         return entity
 

@@ -13,6 +13,7 @@ deployments
 deployment_history
 runs
 run_events
+run_checkpoints
 tools
 agent_tools
 tool_calls
@@ -126,11 +127,21 @@ created_at TIMESTAMPTZ
 UNIQUE(run_id, sequence_number)
 ```
 
-## LangGraph checkpoint storage
+## run_checkpoints (planned)
 
-Use the tables managed by the pinned `langgraph-checkpoint-postgres` package instead of a FORGE `run_checkpoints` table. Do not copy graph state into a competing recovery store. Checkpointer setup/upgrades run explicitly during deployment, separately from FORGE Alembic migrations and API startup.
+```text
+id UUID PK
+run_id UUID FK
+state_version INTEGER
+runtime_state JSONB
+checkpoint_schema_version INTEGER
+runtime_build_version TEXT
+last_event_sequence INTEGER
+created_at TIMESTAMPTZ
+UNIQUE(run_id, state_version)
+```
 
-The runtime phase adds a unique server-generated `graph_thread_id` to each run, plus runtime build/template revision metadata and any checkpoint reference needed for reconciliation. Domain state and graph state have separate transaction boundaries; see `13_LANGCHAIN_LANGGRAPH_RUNTIME.md`. Framework checkpoint access must go through organization-authorized FORGE services.
+FORGE owns checkpoint records through SQLAlchemy/Alembic. `runtime_state` contains the serializable continuation state and references to persisted model/tool/approval records. Pin the runtime template/build and reject incompatible recovery. No graph thread ID, vendor checkpoint tables, separate checkpointer driver, or duplicate state store is required. Introduce durable approval continuation in Phase 5 and distributed recovery in Phase 6; no existing migration changes in this decision reversal.
 
 ## tools
 
@@ -244,3 +255,20 @@ deployment_history(deployment_id, created_at DESC)
 `organizations`: UUID id, name, globally unique slug, created_at. `agents`: organization FK, organization/slug uniqueness, ACTIVE/INACTIVE constraint, timestamps. `agent_versions`: agent FK, agent/version uniqueness, lifecycle constraint, plus `goal`, `runtime_template_revision`, immutable JSONB `tool_version_ids` and `policy_version_ids` alongside the configuration above. Reference arrays and the evaluation-suite UUID are draft intent until their registries exist; they do not yet have foreign keys to future tables. Later normalized bindings must agree with these immutable IDs.
 
 Revision `0002_agent_registry` adds these tables and a PostgreSQL trigger function guarding version inserts (DRAFT only), updates (lifecycle metadata only, valid edge), deletes, and truncation. ORM metadata is registered in Alembic's environment. Migration downgrade drops version/agent/organization tables and the guard function; run downgrade only on disposable data or as an explicitly planned destructive operation.
+
+## Phase 3 Implemented Runtime Schema
+
+Revision `0003_initial_runtime` adds `runs`, `run_events`, and `model_calls` only. All use PostgreSQL, with organization/agent/version/run foreign keys, run-state constraint, unique organization/idempotency key, and unique run/event sequence. Runs additionally store request_hash, error_code, runtime_build_version and execution_config (provider, SDK, template revision, timeout/output cap and budget-enforcement status). Model calls store requested `model`, `actual_model`, full usage metadata, completion timestamp and sanitized error classification.
+
+Costs and usage are nullable when unavailable; a real model call is never assigned a fabricated zero-dollar cost. JSON amounts serialize consistently to eight decimal places. No deployment_id/FK exists until deployments are implemented, and no fallback metadata is needed while fallback execution is rejected. No checkpoint/outbox/tool/approval tables are added in this phase. Use UTF-8 PostgreSQL databases for JSONB model/user text.
+
+## Phase 4 implemented Tool Hub schema
+
+Revision `0004_tool_hub` adds:
+
+- `tools`: organization-owned immutable executable metadata, JSON input/output schemas, risk/timeout/idempotency metadata, and ACTIVE/INACTIVE administrative status. Unique `(organization_id, name, version)`; no global tools in this slice.
+- `agent_tools`: composite key `(agent_version_id, tool_id)`, foreign keys, and a trigger requiring the tool to belong to the agent's organization and its ID to appear in the immutable version JSON. Updates/deletes/truncation of bindings are blocked. Creation writes all normalized bindings; runtime verifies the sets match exactly.
+- `tool_calls`: run/model-call foreign keys, unique `(model_call_id, call_index)`, exact tool ID, requested name, normalized arguments, result/error, decision, stable unique idempotency key, request hash, timestamps, and latency. `tool_id` is nullable specifically to preserve rejected unknown/unbound requests without inventing a registry record. States are RUNNING, COMPLETED, DENIED, FAILED, TIMED_OUT.
+- `demo_tickets`: organization and tool-call foreign keys, customer ID, title/details, timestamps, and unique tool-call/idempotency keys. This is the local demo side effect, with no external service integration.
+
+Tool metadata is guarded in PostgreSQL: only status updates are permitted; deletion and truncation are blocked. Existing agent-version configuration and run history are not rewritten. Legacy unresolved tool UUIDs from draft-intent versions remain unexecutable. Downgrade removes only these four Phase 4 tables and their guard functions; run downgrades only on disposable databases or under an explicitly planned destructive operation.

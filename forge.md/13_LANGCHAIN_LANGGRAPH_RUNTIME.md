@@ -1,6 +1,8 @@
 # LangChain and LangGraph Runtime
 
-Status: accepted architecture; framework implementation starts in Phase 3. Phase 1 remains the HTTP/database foundation.
+> **SUPERSEDED 2026-09-06:** The user reversed this adoption. This document is historical, not implementation instructions. Current design: [FORGE runtime decision](14_FORGE_RUNTIME_DECISION.md).
+
+Status: superseded proposal. The following records the previous design only.
 
 ## Default approach
 

@@ -1,10 +1,30 @@
 # FORGE
 
-FORGE is a production control plane for AI agents. The source of truth is [the specification pack](forge.md/00_INDEX.md). Phases 1–2 are implemented: foundation and the development agent registry.
+FORGE is a production control plane for AI agents. The source of truth is [the specification pack](forge.md/00_INDEX.md). Phases 1–4 are implemented: foundation, development agent registry, in-process model execution, and the local demo Tool Hub.
 
 ## Included
 
 FastAPI application factory, Pydantic Settings, SQLAlchemy 2.x async PostgreSQL connections/sessions, Alembic baseline, health endpoints, structured errors, tests, Ruff, locked dependencies, Docker Compose, and GitHub Actions CI.
+
+The new [local web console](web/README.md) supports workspace setup, agents, immutable versions, test runs, and execution inspection. It uses the Phase 4 API with demo tool registration, binding, and call inspection; future staging/evaluation/deployment screens are not implemented.
+
+## Web console — easier local testing
+
+Keep PostgreSQL and the migrated API running on `127.0.0.1:8000`. To test without a provider key, start the API with `FORGE_MODEL_BACKEND=fake` (see backend setup below).
+
+With Node.js 22 installed, open another terminal:
+
+```sh
+cd web
+npm ci
+npm run dev
+```
+
+Open **http://127.0.0.1:3000**. Create a workspace or connect an existing organization UUID once. Then create an agent, save a version, and select **Test version**. The console supplies the organization header and run idempotency key automatically.
+
+On this Mac, Node was installed with `brew install node@22`. If `node` is not on your terminal's PATH, run `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"` first.
+
+See [the frontend session report](docs/FRONTEND_LOCAL_CONSOLE_SESSION.md) for every new file, test results, limitations, and a request walkthrough. No provider secrets belong in `web/`.
 
 ## Local setup
 
@@ -80,11 +100,11 @@ Create `forge_test` first. The ordinary `FORGE_DATABASE_URL` is used by standalo
 - `forge.md`: source-of-truth specs and architecture decisions.
 - `docs/PHASE_1_IMPLEMENTATION_REPORT.md`: detailed change and verification record.
 
-Organization, agent, and immutable version tables are implemented. Agent execution, worker/Redis/queue, model integrations, authentication, evaluations, and dashboards remain in later phases.
+Organization, agent, and immutable version tables are implemented. Gemini and a labelled fake backend support initial execution. Worker/Redis/queue, fallback, authentication, evaluations, and dashboards remain in later phases.
 
 ## Architecture direction and session reviews
 
-Agent execution will use LangChain `create_agent` on LangGraph, with FORGE's deterministic controls around tools and production operations. See [runtime design](forge.md/13_LANGCHAIN_LANGGRAPH_RUNTIME.md). Framework packages arrive with their implementation phases; the current app implements Phase 2 registry operations.
+Agent execution will use a FORGE-owned runtime and state machine with provider adapters. See [runtime design](forge.md/14_FORGE_RUNTIME_DECISION.md). PostgreSQL will store durable checkpoints; LangChain/LangGraph and graph databases are not required. Current implementation includes the Phase 4 bounded model/tool runtime.
 
 Start each code review with [the directory and walkthrough guide](docs/CODE_REVIEW_GUIDE.md). Session reports explain each changed file, its purpose, validation results, and limitations.
 
@@ -100,6 +120,48 @@ Apply `uv run alembic upgrade head`, then use `/docs` to:
 5. List/read the versions, change agent metadata, and verify historical configuration is unchanged.
 6. Archive a DRAFT version. Editing its configuration returns `VERSION_IMMUTABLE`.
 
-The organization header is a development selector, **not authentication**. Registry routes are disabled when `FORGE_ENVIRONMENT=production`; keep local/test mode private. Staging rejects missing or unverifiable dependencies until later registries exist. Agents can be defined but cannot execute yet.
+The organization header is a development selector, **not authentication**. Registry routes are disabled when `FORGE_ENVIRONMENT=production`; keep local/test mode private. Staging rejects missing or unverifiable dependencies until later registries exist. Agents can now execute through the Phase 3 endpoint described below.
 
 Review [the Phase 2 report](docs/PHASE_2_IMPLEMENTATION_REPORT.md) for every changed file and test result. `src/forge/agents/` contains registry models, schemas, lifecycle, repository, and service; `src/forge/api/registry.py` exposes the HTTP endpoints.
+
+
+## Phase 3: run an exact version
+
+Use a UTF-8 PostgreSQL database and apply `uv run alembic upgrade head` before starting the updated API. Provider configuration:
+
+| Variable | Behavior |
+| --- | --- |
+| `FORGE_MODEL_BACKEND` | `gemini` (default) or explicitly labelled `fake` demo |
+| `FORGE_GEMINI_API_KEY` | Server-side Gemini key; never enter it into Swagger or commit it |
+| `FORGE_MODEL_TIMEOUT_SECONDS` | Model wait timeout, default 60; also bounded by version runtime limit |
+| `FORGE_MODEL_MAX_OUTPUT_TOKENS` | Output cap, default 1024 |
+
+For a local demo without a key or charges:
+
+```sh
+FORGE_MODEL_BACKEND=fake uv run uvicorn forge.main:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+Create a version with standard-agent-v1, no tools/policies/fallbacks, and DRAFT status. Open `/docs` → **runs → POST /api/v1/runs**. Enter your organization ID and an Idempotency-Key such as `my-first-run`, then provide the actual version ID and input message. A new run returns 201; inspect its `status` and `output`. Reusing the same key/body returns the existing run without calling the model again. Use a new key for a deliberately new execution.
+
+Read the saved run, events, and model calls through the three GET endpoints. Fake output includes `FAKE MODEL` identification and provider `fake`. To use Gemini, configure your key privately in `.env` or environment, choose backend `gemini`, and restart the API. A real invocation sends the selected version's goal/instructions and your input to Google and may incur charges. No key was configured for this session's tests; Gemini network execution remains unverified.
+
+The original Phase 3 milestone made one model call; Phase 4 now supports registered and permitted demo tools, as described below. Real dollar costs are null and budget enforcement is not implemented until Phase 7. A crash or lost final database write can leave a RUNNING record; idempotency returns it instead of attempting automatic recovery. Production access remains disabled.
+
+For side-by-side function explanations and all file changes, read [the Phase 3 report](docs/PHASE_3_IMPLEMENTATION_REPORT.md) and [review guide](docs/CODE_REVIEW_GUIDE.md).
+
+## Phase 4: model-requested tool calling
+
+Apply `uv run alembic upgrade head` to add the Tool Hub tables, then restart the API. No new dependencies or provider key are needed for fake mode.
+
+In the console, open **Tools** and register the demos. Clone an existing agent version, give it a new label, and select tools under **Tool permissions**. Save it, click **Test version**, and expand **Fake-backend tool examples**. **Customer lookup** fills:
+
+```text
+/tool lookup_customer {"customer_id":"cust_001"}
+```
+
+Press **Run agent**. Expect two model calls and one tool call, with normalized arguments, ALLOW/DENY decision, exact revision ID, latency, and result in the inspector. `lookup_transactions` reads synthetic transactions; `create_ticket` creates a local database ticket. It does not send an external message or create a real helpdesk ticket. Selecting no tools on a version makes these requests fail closed.
+
+The Gemini adapter can request the same schema-defined tools with automatic SDK execution disabled; only FORGE's Tool Hub can execute them. Real Gemini execution still needs a backend key and a supported model; it was not live-tested in this phase. Refund policies/approvals remain Phase 5, worker recovery Phase 6, monetary accounting/enforcement Phase 7.
+
+See [the Phase 4 report](docs/PHASE_4_IMPLEMENTATION_REPORT.md) for every changed file, migration, commands, test results, and a function-by-function walkthrough.

@@ -13,7 +13,7 @@ Codex is an implementation partner, not the architecture authority. These Markdo
 7. Use SQLAlchemy 2.x and Alembic.
 8. Add tests with every feature.
 9. Run tests before completion.
-10. Keep LangChain provider integrations behind thin adapters; prefer ecosystem interfaces over direct provider SDK plumbing.
+10. Keep provider SDK code behind thin adapters.
 11. Never use LLM output for authorization.
 12. Preserve version immutability.
 13. Do not introduce microservices/Kubernetes/Kafka without explicit later instruction.
@@ -70,9 +70,9 @@ Do not implement runtime yet.
 ## Runtime Prompt
 
 ```text
-Read 04_RUNTIME_AND_STATE_MACHINE.md and 13_LANGCHAIN_LANGGRAPH_RUNTIME.md.
+Read 04_RUNTIME_AND_STATE_MACHINE.md and 14_FORGE_RUNTIME_DECISION.md.
 
-Implement runs, run_events, state enum, transition validation, initial in-process LangChain create_agent execution on LangGraph, thin LangChain Gemini adapter, model_call persistence, and tests.
+Implement runs, run_events, state enum, transition validation, initial in-process FORGE runtime, Gemini provider adapter, model_call persistence, and tests.
 
 Do not add Redis/queue yet.
 ```
@@ -82,7 +82,7 @@ Do not add Redis/queue yet.
 ```text
 Read 05_TOOLS_POLICIES_APPROVALS.md.
 
-Implement LangChain tools with FORGE validation/policy middleware, demo tools, deterministic refund policy, approvals, LangGraph PostgreSQL checkpointing and interrupt/resume, and tests.
+Implement Tool Hub validation and deterministic policy, demo tools, refund approvals, FORGE PostgreSQL checkpoints for pause/resume, and tests.
 ```
 
 ## Durability Prompt
@@ -90,7 +90,7 @@ Implement LangChain tools with FORGE validation/policy middleware, demo tools, d
 ```text
 Read 04_RUNTIME_AND_STATE_MACHINE.md and 09_OBSERVABILITY_RELIABILITY_SECURITY.md.
 
-Implement queue abstraction, worker, Redis run locks, LangGraph checkpoint/domain reconciliation, idempotency, retry/backoff, cancellation, timeout, duplicate-delivery tests, and worker-recovery tests.
+Implement queue abstraction, worker, Redis run locks, FORGE checkpoints and transactional outbox, idempotency, retry/backoff, cancellation, timeout, duplicate-delivery tests, and worker-recovery tests.
 ```
 
 ## Evaluation/Release Prompt
@@ -111,10 +111,10 @@ Implement deployments, deployment_history, gate enforcement, atomic production p
 Rollback must point to an immutable previous version.
 ```
 
-## Framework and Session Review Rules
+## Runtime and Session Review Rules
 
-- Read `13_LANGCHAIN_LANGGRAPH_RUNTIME.md` before runtime/tool/model work.
-- Prefer LangChain standard agent APIs and LangGraph persistence/interrupts. Do not hand-write a competing agent loop, scheduler, or checkpointer.
+- Read `14_FORGE_RUNTIME_DECISION.md` before runtime/tool/model work.
+- Implement the scoped FORGE-owned runtime and state machine. Do not add LangChain/LangGraph or a general-purpose workflow framework without a later explicit decision.
 - Keep FORGE authorization, tool validation, release gates, and side-effect idempotency explicit and tested.
 - Keep code changes within the requested phase and organize them into understandable responsibilities. Avoid speculative abstractions and empty future module directories.
 - At session completion, list every changed file and directory, explain its purpose and caller/callee relationships, and give a recommended reading order plus one concrete request walkthrough.

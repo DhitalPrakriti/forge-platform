@@ -11,3 +11,9 @@ build/
 dist/
 *.egg-info/
 .DS_Store
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo

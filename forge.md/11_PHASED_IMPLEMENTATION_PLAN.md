@@ -39,8 +39,8 @@ Done when v1/v2 can be created and history cannot be mutated.
 runs
 run events
 state machine
-LangChain Gemini adapter
-LangChain create_agent running on LangGraph
+Gemini provider adapter
+FORGE-owned runtime and state machine
 single in-process execution (no queue)
 ```
 
@@ -49,8 +49,8 @@ Done when a run persists exact version + result.
 ## Phase 4 — Tool Hub
 
 ```text
-LangChain tool registration
-FORGE schema/policy wrapper boundary
+FORGE tool registry
+Tool Hub validation and policy boundary
 schema validation
 tool calls
 lookup_customer
@@ -58,9 +58,11 @@ lookup_transactions
 create_ticket
 ```
 
+Phase 4 implementation and review are recorded in `../docs/PHASE_4_IMPLEMENTATION_REPORT.md`. Its small Tools UI extends the earlier local console; it does not complete the full dashboard roadmap. Review this slice before starting Phase 5.
+
 ## Phase 5 — Policy + Approval
 
-Add the PostgreSQL LangGraph checkpointer and `interrupt`/`Command` approval resume, with restart-safe approval records and checkpoint setup. Add `issue_refund` and deterministic policy:
+Add FORGE PostgreSQL checkpoints and approval pause/resume, with restart-safe approval records and continuation state. Add `issue_refund` and deterministic policy:
 
 ```text
 $50  → allow
@@ -75,7 +77,7 @@ queue
 worker
 Redis
 locks
-LangGraph checkpoint/domain reconciliation
+FORGE checkpoint recovery
 transactional outbox
 idempotency
 retry
@@ -88,7 +90,7 @@ Done when killing worker and restarting resumes without duplicate irreversible a
 ## Phase 7 — Model Router
 
 ```text
-LangChain OpenAI adapter
+OpenAI provider adapter
 primary/fallback
 provider health
 circuit breaker
@@ -200,8 +202,8 @@ Week 6: phases 11-14 + deployment polish
 
 That tells a complete production engineering story.
 
-## Framework Adoption and Review Checkpoints
+## Runtime Implementation and Review Checkpoints
 
-Phase 3 introduces the standard LangChain/LangGraph agent execution with a fake model for deterministic tests and a Gemini integration. No durable recovery claim is made yet. Phase 4 routes every LangChain tool through FORGE controls. Phase 5 introduces persistent graph checkpoints for approvals; test restart/resume and idempotent pre-interrupt writes. Phase 6 adds distributed execution, outbox reconciliation, duplicate delivery, and worker crash tests. Phase 7 adds the second provider and coordinated fallback/retry accounting.
+Phase 3 introduces a small FORGE-owned in-process execution path with a fake model for deterministic tests and a Gemini adapter. No durable recovery claim is made yet. Phase 4 routes every tool through the Tool Hub. Phase 5 adds persistent approval continuation and tests restart/resume. Phase 6 adds queue/workers, Redis locks, transactional outbox, durable checkpoint recovery, duplicate delivery, and crash tests. Phase 7 adds OpenAI, provider health, and coordinated fallback/retry accounting.
 
-Finish each requested phase/session with the review map required by `10_CODEX_WORKING_RULES.md`. The six-week mapping is a planning estimate; user code review is part of the work, and later phases do not start automatically.
+Finish each requested phase/session with the review map required by `10_CODEX_WORKING_RULES.md`. The six-week mapping is an estimate; user code review remains part of the work, and later phases do not start automatically.

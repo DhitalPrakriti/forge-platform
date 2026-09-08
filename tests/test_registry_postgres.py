@@ -166,7 +166,6 @@ def test_unverified_staging_references_are_blocked(client):
     aid = agent(client, scope)
     payload = version_payload(
         evaluation_suite_version_id=str(uuid4()),
-        tool_version_ids=[str(uuid4())],
         policy_version_ids=[str(uuid4())],
     )
     response = client.post(f"/api/v1/agents/{aid}/versions", headers=scope, json=payload)
@@ -229,7 +228,7 @@ def test_postgres_guards_history(client, database_url):
                     "INVALID_LIFECYCLE_TRANSITION",
                 ),
                 ("DELETE FROM agent_versions WHERE id = :id", "VERSION_IMMUTABLE"),
-                ("TRUNCATE agent_versions", "VERSION_IMMUTABLE"),
+                ("TRUNCATE agent_versions CASCADE", "VERSION_IMMUTABLE"),
             ]:
                 async with database.sessions() as session:
                     with pytest.raises(DBAPIError) as error:
