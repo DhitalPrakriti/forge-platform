@@ -26,7 +26,7 @@ TRANSITIONS = {
         RunState.RETRYING,
         RunState.COMPLETED,
     },
-    RunState.WAITING_FOR_TOOL: {RunState.RUNNING, RunState.RETRYING},
+    RunState.WAITING_FOR_TOOL: {RunState.RUNNING, RunState.RETRYING, RunState.WAITING_FOR_APPROVAL},
     RunState.WAITING_FOR_APPROVAL: {RunState.RUNNING},
     RunState.RETRYING: {RunState.RUNNING},
 }

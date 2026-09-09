@@ -54,7 +54,9 @@ class ToolCall(Base):
     __table_args__ = (
         UniqueConstraint("model_call_id", "call_index"),
         CheckConstraint(
-            "status IN ('RUNNING','COMPLETED','DENIED','FAILED','TIMED_OUT')", name="status"
+            "status IN ('WAITING_FOR_APPROVAL','RUNNING','COMPLETED',"
+            "'DENIED','FAILED','TIMED_OUT')",
+            name="status",
         ),
         Index("ix_tool_calls_run_created", "run_id", "created_at"),
     )

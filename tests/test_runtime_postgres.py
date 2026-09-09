@@ -186,7 +186,6 @@ def test_scope_lifecycle_and_missing_configuration(client):
 @pytest.mark.parametrize(
     "changes",
     [
-        {"policy_version_ids": [str(uuid4())]},
         {"fallback_models": ["other"]},
         {"runtime_template_revision": "future"},
     ],

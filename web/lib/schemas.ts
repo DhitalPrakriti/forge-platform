@@ -16,6 +16,7 @@ export const organizationIdSchema = z.object({
   id: z.string().uuid("Enter a valid organization UUID."),
 });
 export const versionSchema = z.object({
+  policy_version_ids: z.array(z.string().uuid()).max(1),
   tool_version_ids: z.array(z.string().uuid()).max(100),
   version: z.string().trim().min(1, "Give this version a label.").max(100),
   goal: z.string().trim().min(1, "Describe the agent’s goal.").max(10000),

@@ -49,6 +49,7 @@ describe("forms and local context", () => {
   it("rejects blank behavior, fractional steps, and over-precise budgets", () => {
     const valid = {
       tool_version_ids: [],
+      policy_version_ids: [],
       version: "v1",
       goal: "Help",
       instructions: "Be useful",

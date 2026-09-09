@@ -272,3 +272,9 @@ Revision `0004_tool_hub` adds:
 - `demo_tickets`: organization and tool-call foreign keys, customer ID, title/details, timestamps, and unique tool-call/idempotency keys. This is the local demo side effect, with no external service integration.
 
 Tool metadata is guarded in PostgreSQL: only status updates are permitted; deletion and truncation are blocked. Existing agent-version configuration and run history are not rewritten. Legacy unresolved tool UUIDs from draft-intent versions remain unexecutable. Downgrade removes only these four Phase 4 tables and their guard functions; run downgrades only on disposable databases or under an explicitly planned destructive operation.
+
+## Phase 5 concrete migration
+
+`0005_policy_approval` adds `policies`, `approvals`, `run_checkpoints`, and `demo_refunds`. Policy rules are an immutable JSON document on each installed revision (no separate editable `policy_rules` table in this slice). Exact policy UUIDs remain pinned in immutable `agent_versions.policy_version_ids`; creation and execution resolve ownership and installed rules. Existing historical unresolved versions are preserved and fail resolution.
+
+Approvals include organization/run/tool-call/policy FKs, unique tool-call identity, immutable normalized payload/hash/expiry, PENDING/APPROVED/DENIED/EXPIRED status, and first-review identity/time/reason. Checkpoints contain schema/build versions, run/state version uniqueness, event position, model-call/step references, and private serialized continuation. Policies and checkpoints reject UPDATE/DELETE/TRUNCATE; approval binding and completed decisions are protected by triggers. Local refund rows have unique tool-call and idempotency keys and commit with validated tool results. `tool_calls` adds WAITING_FOR_APPROVAL status.

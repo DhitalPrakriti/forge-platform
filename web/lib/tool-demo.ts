@@ -7,6 +7,14 @@ export const DEMO_TOOLS: {
   message: string;
 }[] = [
   {
+    name: "issue_refund",
+    label: "Simulated refund",
+    description:
+      "Record a local refund. USD 50 allows, 425 needs approval, 700 denies.",
+    message:
+      '/tool issue_refund {"customer_id":"cust_001","amount_usd":"425.00"}',
+  },
+  {
     name: "lookup_customer",
     label: "Customer lookup",
     description: "Read a synthetic customer profile.",

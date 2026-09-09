@@ -55,7 +55,7 @@ class GeminiAdapter:
         if request.exchanges:
             contents = [types.Content(role="user", parts=[types.Part(text=request.message)])]
             for exchange in request.exchanges:
-                # Preserve the original model content/signatures only inside this request loop.
+                # Preserve the original content/signatures, including after checkpoint restore.
                 contents.append(exchange.response.provider_content)
                 contents.append(
                     types.Content(

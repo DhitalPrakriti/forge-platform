@@ -86,3 +86,15 @@ Technical references used: [Next.js installation](https://nextjs.org/docs/app/ge
 The sample customers are `cust_001` and `cust_002`. Customer/transaction data is synthetic. Demo tickets are saved in your organization's local database without contacting an external service. The original agent version keeps its original tool permissions. An unbound tool is denied; an inactive tool cannot newly execute. Disabling requires confirmation and can later be reversed with Enable.
 
 Run progress now polls during WAITING_FOR_TOOL as well as RUNNING. Monetary budgets, approval flows, external integrations, and recovery remain deferred. The Phase 4 changes and complete test results are in [the implementation report](../docs/PHASE_4_IMPLEMENTATION_REPORT.md).
+
+## Phase 5 approval walkthrough
+
+1. In Tools, register `issue_refund` and the refund policy.
+2. Clone an agent version, select the refund tool and policy, and save. Use a 600-second runtime limit to allow review time.
+3. Test `/tool issue_refund {"customer_id":"cust_001","amount_usd":"425.00"}`.
+4. In the run inspector, check the exact amount/customer/hash and expiry. Enter your configured local reviewer credential and reason; confirm Approve refund or Deny refund.
+5. Approval saves the decision. Click Resume approved run to continue. Reloading clears the credential but preserves database evidence; re-enter the credential to resume.
+
+USD 50.00 allows; USD 700.00 denies. All refunds are simulated local database records. No provider key is needed for fake mode. The session's generated local credential is in ignored `.tools/local-reviewer.env` at the repository root; only its token value belongs in the password field. Production login is not implemented.
+
+The new browser approval test requires `FORGE_APPROVAL_REVIEWER_TOKEN` matching the API. CI uses a disposable test credential; local test runs without this variable explicitly skip that one flow.

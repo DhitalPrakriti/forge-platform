@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
+from forge.approvals.policy import resolve_policy
 from forge.core.config import Settings
 from forge.core.errors import DomainError
 from forge.model_router.base import ModelAdapter, ModelRequest
@@ -75,17 +76,19 @@ class RunService:
             raise DomainError(
                 "VERSION_NOT_RUNNABLE", "Use an active agent's DRAFT or STAGING version.", 409
             )
-        if (
-            version.policy_version_ids
-            or version.fallback_models
-            or version.runtime_template_revision != "standard-agent-v1"
-        ):
+        if version.fallback_models or version.runtime_template_revision != "standard-agent-v1":
             raise DomainError(
                 "RUNTIME_CONFIGURATION_UNSUPPORTED",
-                "Phase 4 supports standard-agent-v1 without policy bindings or fallback.",
+                "Phase 5 supports standard-agent-v1 without fallback.",
                 409,
             )
         tools = await ToolRegistry(self.session).resolve(organization_id, version.tool_version_ids)
+        await resolve_policy(
+            self.session,
+            organization_id,
+            version.policy_version_ids,
+            required=any(t.name == "issue_refund" for t in tools),
+        )
         bindings = await ToolRepository(self.session).bindings(version.id)
         if set(bindings) != {tool.id for tool in tools}:
             raise DomainError(
@@ -116,7 +119,7 @@ class RunService:
             status=RunState.CREATED.value,
             state_version=0,
             input=payload.input.model_dump(),
-            runtime_build_version="forge-runtime-phase4-v1",
+            runtime_build_version="forge-runtime-phase5-v1",
             idempotency_key=key,
             request_hash=request_hash,
             execution_config={
@@ -124,7 +127,9 @@ class RunService:
                 "tool_version_ids": [str(tool.id) for tool in tools],
                 "max_tool_calls": MAX_TOOL_CALLS,
                 "max_calls_per_turn": MAX_CALLS_PER_TURN,
-                "policy_boundary": "LOCAL_DEMO_ONLY_PHASE_4",
+                "policy_boundary": "DETERMINISTIC_REFUND_V1",
+                "policy_version_ids": version.policy_version_ids,
+                "max_runtime_seconds": version.runtime_config["max_runtime_seconds"],
                 "requested_model": request.model,
                 "timeout_seconds": timeout,
                 "max_output_tokens": request.max_output_tokens,
@@ -169,6 +174,8 @@ class RunService:
             version.runtime_config["max_steps"],
             version.runtime_config["max_runtime_seconds"],
         )
+        if run.status == RunState.WAITING_FOR_APPROVAL:
+            return run, True
         run.completed_at = datetime.now(UTC)
         run.error_code = failure
         target = (

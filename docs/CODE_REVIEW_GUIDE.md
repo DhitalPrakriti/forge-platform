@@ -273,3 +273,29 @@ Test version → /tool lookup_customer {"customer_id":"cust_001"}
 Review questions: Why does registering a tool not give every agent permission? Why are tools selected on a new version? What happens if a tool is disabled during the model call? Where is a local ticket rolled back after invalid output? Which transaction closes the local write/result gap? Why does that not prove safety for an external helpdesk? Why must a RUNNING tool call with unknown outcome never be blindly reexecuted? Which event shows the exact tool call and which model turn requested it?
 
 Phase 5 remains the next stage after review: business policies, refunds, approvals, and persistent pause/resume. No Phase 5 approval UI or execution has been implemented in this session.
+
+## Phase 5 reading order and request walkthrough
+
+Start with `docs/PHASE_5_IMPLEMENTATION_REPORT.md` for the complete file inventory, tests, limits, and local setup.
+
+1. `approvals/models.py` and migration 0005: durable truth, immutable evidence, and local simulated effects.
+2. `approvals/policy.py` and `tools/builtins.py`: installed rules and strictly typed decimal-string input. The model never chooses the authorization verdict.
+3. `tools/hub.py`: stable identity, schema/permission checks, policy evaluation, and pending approval creation before execution.
+4. `runtime/checkpoints.py` and `runtime/engine.py`: exact model response/exchanges saved with a pause; reload the batch and reuse completed results.
+5. `approvals/service.py`: first decision under a row lock; resume checks compatibility/expiry/permissions, claims one executor, and continues the same run.
+6. `api/approvals.py`, `core/config.py`: thin endpoints and server-owned local reviewer identity.
+7. Frontend `approval-panel.tsx`, `version-form.tsx`, API client/proxy: visible review, confirmation, memory-only token, and explicit resume.
+8. Tests: boundary amounts, restart, concurrency, exact-request binding, expiry/denial, multiple pauses, refund rollback, and browser workflow.
+
+| Ordinary function call | What the model requests / what FORGE verifies |
+| --- | --- |
+| `FakeAdapter.generate` | Returns `issue_refund` plus customer and amount as data. |
+| `ToolHub.execute` | Validates schema, pinned tool, policy, current status, exact request identity. |
+| `refund_decision` | Computes ALLOW / REQUIRE_APPROVAL / DENY using Decimal thresholds. |
+| `RuntimeEngine.execute` | Saves approval + checkpoint + WAITING_FOR_APPROVAL together and returns. |
+| `ApprovalService.decide` | Verifies reviewer credential at API boundary; records exact human decision. |
+| `ApprovalService.resume` | Loads private checkpoint, verifies authority and limits, claims original run. |
+| `execute_builtin` | Writes one local simulated refund only after authorization. |
+| `adapter.generate` | Receives tool results and generates final response; original tool-request turn is not repeated. |
+
+Review questions: Can changed customer/amount reuse approval? What happens when the tool is disabled? Where is the decision durable before resume? Which tables cannot be mutated? Why can a completed call be reused but an unknown RUNNING call not be retried? Which crash windows remain Phase 6? Why is a local reviewer credential not production membership IAM?

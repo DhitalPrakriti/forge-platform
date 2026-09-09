@@ -1,12 +1,12 @@
 # FORGE
 
-FORGE is a production control plane for AI agents. The source of truth is [the specification pack](forge.md/00_INDEX.md). Phases 1–4 are implemented: foundation, development agent registry, in-process model execution, and the local demo Tool Hub.
+FORGE is a production control plane for AI agents. The source of truth is [the specification pack](forge.md/00_INDEX.md). Phases 1–5 are implemented: foundation, development agent registry, model/tool execution, and local refund policy with persistent human approval continuation.
 
 ## Included
 
 FastAPI application factory, Pydantic Settings, SQLAlchemy 2.x async PostgreSQL connections/sessions, Alembic baseline, health endpoints, structured errors, tests, Ruff, locked dependencies, Docker Compose, and GitHub Actions CI.
 
-The new [local web console](web/README.md) supports workspace setup, agents, immutable versions, test runs, and execution inspection. It uses the Phase 4 API with demo tool registration, binding, and call inspection; future staging/evaluation/deployment screens are not implemented.
+The new [local web console](web/README.md) supports workspace setup, agents, immutable versions, test runs, and execution inspection. It uses the Phase 5 API with demo tool registration, binding, and call inspection; future staging/evaluation/deployment screens are not implemented.
 
 ## Web console — easier local testing
 
@@ -104,7 +104,7 @@ Organization, agent, and immutable version tables are implemented. Gemini and a 
 
 ## Architecture direction and session reviews
 
-Agent execution will use a FORGE-owned runtime and state machine with provider adapters. See [runtime design](forge.md/14_FORGE_RUNTIME_DECISION.md). PostgreSQL will store durable checkpoints; LangChain/LangGraph and graph databases are not required. Current implementation includes the Phase 4 bounded model/tool runtime.
+Agent execution will use a FORGE-owned runtime and state machine with provider adapters. See [runtime design](forge.md/14_FORGE_RUNTIME_DECISION.md). PostgreSQL will store durable checkpoints; LangChain/LangGraph and graph databases are not required. Current implementation includes the Phase 5 bounded model/tool runtime and persistent approval continuation.
 
 Start each code review with [the directory and walkthrough guide](docs/CODE_REVIEW_GUIDE.md). Session reports explain each changed file, its purpose, validation results, and limitations.
 
@@ -165,3 +165,14 @@ Press **Run agent**. Expect two model calls and one tool call, with normalized a
 The Gemini adapter can request the same schema-defined tools with automatic SDK execution disabled; only FORGE's Tool Hub can execute them. Real Gemini execution still needs a backend key and a supported model; it was not live-tested in this phase. Refund policies/approvals remain Phase 5, worker recovery Phase 6, monetary accounting/enforcement Phase 7.
 
 See [the Phase 4 report](docs/PHASE_4_IMPLEMENTATION_REPORT.md) for every changed file, migration, commands, test results, and a function-by-function walkthrough.
+
+
+## Phase 5: simulated refunds and approval
+
+In Tool Hub, register `issue_refund` and **Register refund policy**. Clone a version, select both revisions, and save. For comfortable review, use a runtime limit such as 600 seconds; approval waiting consumes that limit.
+
+Test with `/tool issue_refund {"customer_id":"cust_001","amount_usd":"425.00"}`. USD 50.00 allows automatically, 425.00 waits for approval, and 700.00 denies. These are local demo rows; no money moves.
+
+Configure `FORGE_APPROVAL_REVIEWER_TOKEN` (random, at least 32 characters) and `FORGE_APPROVAL_REVIEWER_ID` (UUID) on the API. For this local session, an ignored, permission-600 `.tools/local-reviewer.env` was created and loaded into the API. Open that file locally and copy just the token value into **Local reviewer credential** on the run page. Enter a reason, confirm **Approve refund**, then **Resume approved run**. The token is not saved in browser storage. Never commit the credential file.
+
+The saved decision and checkpoint survive an API restart. Repeated resume never creates another refund after completion. General execution-crash recovery, scheduled expiry, queue workers, production IAM, and real payments are outside this phase. See [the complete Phase 5 review](docs/PHASE_5_IMPLEMENTATION_REPORT.md).

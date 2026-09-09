@@ -6,6 +6,7 @@ from time import monotonic
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.approvals.models import RunCheckpoint
 from forge.model_router.base import (
     ModelAdapter,
     ModelFailure,
@@ -13,6 +14,7 @@ from forge.model_router.base import (
     ModelResult,
     ToolExchange,
 )
+from forge.runtime.checkpoints import load_exchanges, load_result, save_exchanges, save_result
 from forge.runtime.events import record_event, transition_run
 from forge.runtime.models import ModelCall, Run
 from forge.runtime.state import RunState
@@ -22,7 +24,7 @@ from forge.tools.models import Tool
 
 
 class RuntimeEngine:
-    """Bounded in-process model → Tool Hub → model loop. No crash recovery yet."""
+    """Bounded model/tool loop with approval continuation. General recovery is Phase 6."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -64,18 +66,21 @@ class RuntimeEngine:
         tools: list[Tool],
         max_steps: int,
         max_runtime_seconds: int,
+        continuation: dict | None = None,
     ) -> str | None:
         elapsed = max(0, (datetime.now(UTC) - run.started_at).total_seconds())
         deadline = monotonic() + max_runtime_seconds - elapsed
-        exchanges = []
-        for step in range(1, max_steps + 1):
+        exchanges = load_exchanges(continuation["exchanges"]) if continuation else []
+        first_step = continuation["step"] if continuation else 1
+        for step in range(first_step, max_steps + 1):
             remaining = deadline - monotonic()
             if remaining <= 0:
                 if step == 1:
                     call.status, call.error_type = "TIMED_OUT", "RUN_TIMEOUT"
                     call.completed_at = datetime.now(UTC)
                 return "RUN_TIMEOUT"
-            if step > 1:
+            resuming_batch = continuation is not None and step == first_step
+            if step > 1 and not resuming_batch:
                 call = ModelCall(
                     run_id=run.id, provider=adapter.provider, model=request.model, status="RUNNING"
                 )
@@ -84,18 +89,21 @@ class RuntimeEngine:
                 run.model_calls_count += 1
                 record_event(self.session, run, "MODEL_CALL_STARTED", {"step": step})
                 await self.session.commit()
-            result, failure = await self.model_step(
-                run,
-                call,
-                adapter,
-                replace(
-                    request,
-                    timeout_seconds=min(request.timeout_seconds, remaining),
-                    exchanges=exchanges,
-                ),
-            )
-            if failure:
-                return failure
+            if resuming_batch:
+                result = load_result(continuation["result"])
+            else:
+                result, failure = await self.model_step(
+                    run,
+                    call,
+                    adapter,
+                    replace(
+                        request,
+                        timeout_seconds=min(request.timeout_seconds, remaining),
+                        exchanges=exchanges,
+                    ),
+                )
+                if failure:
+                    return failure
             if result.finish_reason != "STOP":
                 return "MODEL_RESPONSE_INCOMPLETE"
             if not result.tool_requests:
@@ -105,9 +113,9 @@ class RuntimeEngine:
                 return None
             if step >= max_steps:
                 return "STEP_LIMIT_EXCEEDED"
-            if (
-                len(result.tool_requests) > MAX_CALLS_PER_TURN
-                or run.tool_calls_count + len(result.tool_requests) > MAX_TOOL_CALLS
+            if len(result.tool_requests) > MAX_CALLS_PER_TURN or (
+                not resuming_batch
+                and run.tool_calls_count + len(result.tool_requests) > MAX_TOOL_CALLS
             ):
                 return "TOOL_CALL_LIMIT_EXCEEDED"
             transition_run(
@@ -127,6 +135,29 @@ class RuntimeEngine:
                     )
                 except ToolFailure as exc:
                     return exc.code
+                if recorded.status == "WAITING_FOR_APPROVAL":
+                    transition_run(
+                        self.session,
+                        run,
+                        RunState.WAITING_FOR_APPROVAL,
+                        {"tool_call_id": str(recorded.id)},
+                    )
+                    self.session.add(
+                        RunCheckpoint(
+                            run_id=run.id,
+                            state_version=run.state_version,
+                            last_event_sequence=run.state_version,
+                            runtime_build_version=run.runtime_build_version,
+                            runtime_state={
+                                "step": step,
+                                "model_call_id": str(call.id),
+                                "result": save_result(result),
+                                "exchanges": save_exchanges(exchanges),
+                            },
+                        )
+                    )
+                    await self.session.commit()
+                    return None
                 if recorded.error:
                     return recorded.error["code"]
                 results.append(

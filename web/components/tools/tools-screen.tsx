@@ -31,6 +31,12 @@ export function ToolsScreen() {
     onSuccess: () =>
       void client.invalidateQueries({ queryKey: [workspace!.id, "tools"] }),
   });
+  const policy = useMutation({
+    mutationFn: () => api.registerPolicy(workspace!.id),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [workspace!.id, "policies"] });
+    },
+  });
   const patch = useMutation({
     mutationFn: ({ id, status }: { id: string; status: Tool["status"] }) =>
       api.patchTool(workspace!.id, id, status),
@@ -44,7 +50,7 @@ export function ToolsScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="PHASE 4 / TOOL HUB"
+        eyebrow="PHASE 5 / TOOL HUB"
         title="Give agents permission to act."
         description="Register an installed demo tool, then select its exact revision when creating a new agent version."
       />
@@ -140,8 +146,24 @@ export function ToolsScreen() {
         </p>
         <p className="inset-note">
           Existing versions stay immutable. Clone an agent version to add tool
-          permissions. Business policies and human approval arrive in Phase 5.
+          permissions. Refund versions also need the installed refund policy
+          below.
         </p>
+      </Card>
+      <Card
+        title="Refund policy v1.0.0"
+        subtitle="USD amounts up to 100 allow; above 100 through 500 require approval; above 500 deny."
+      >
+        <Button disabled={policy.isPending} onClick={() => policy.mutate()}>
+          Register refund policy
+        </Button>
+        <ErrorNotice error={policy.error} />
+        {policy.data && (
+          <p role="status" className="mono break-word">
+            Registered policy: {policy.data.id}. Select it in your new agent
+            version.
+          </p>
+        )}
       </Card>
       <ConfirmDialog
         open={!!disable}

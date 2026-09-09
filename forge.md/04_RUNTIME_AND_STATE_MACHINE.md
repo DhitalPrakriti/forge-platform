@@ -155,3 +155,7 @@ Model-call intent commits before each provider request. A tool response transiti
 Time remaining is recomputed before model turns and tool execution; handler time and tool-lock waiting are bounded. Database availability/commit failures and process recovery remain durability concerns. The engine retains provider continuation data only in memory. Gemini function IDs and original signed content are sent back to Gemini as required, but hidden thought text and opaque signatures are not included in API records, logs, or tool evidence. SDK automatic function execution remains disabled.
 
 Tool validation/permission/output errors fail visibly. Tool/run timeouts end TIMED_OUT. No checkpoint, approval resume, cancellation, retry worker, queue, or crash-recovery claim is added. Monetary enforcement is declared `DEFERRED_TO_PHASE_7` in new execution_config records.
+
+## Phase 5 approval continuation
+
+WAITING_FOR_TOOL may transition to WAITING_FOR_APPROVAL. The waiting call, approval, checkpoint, event, and run state commit atomically. After a saved human decision, explicit resume claims the run as RUNNING and re-enters the saved tool batch. Completed calls are reused; the pending call verifies exact approval before execution. Multiple approval pauses retain earlier exchanges. No previous model turn is repeated. Checkpoint serialization preserves private provider content, schema/build versions, and original execution limits. Queue-based recovery remains Phase 6.

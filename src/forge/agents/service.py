@@ -7,6 +7,7 @@ from forge.agents.lifecycle import Lifecycle, validate_transition
 from forge.agents.models import Agent, AgentVersion, Organization
 from forge.agents.repository import RegistryRepository
 from forge.agents.schemas import AgentCreate, AgentPatch, OrganizationCreate, VersionCreate
+from forge.approvals.policy import resolve_policy
 from forge.core.errors import DomainError
 from forge.tools.models import AgentTool
 from forge.tools.registry import ToolRegistry
@@ -68,6 +69,12 @@ class RegistryService:
         if agent.status != "ACTIVE":
             raise DomainError("AGENT_INACTIVE", "Cannot version an inactive agent.", 409)
         tools = await ToolRegistry(self.session).resolve(organization_id, payload.tool_version_ids)
+        await resolve_policy(
+            self.session,
+            organization_id,
+            payload.policy_version_ids,
+            required=any(t.name == "issue_refund" for t in tools),
+        )
         config = payload.model_dump(mode="json")
         config["evaluation_suite_version_id"] = payload.evaluation_suite_version_id
         entity = AgentVersion(agent_id=agent_id, **config)

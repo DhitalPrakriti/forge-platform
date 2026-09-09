@@ -224,3 +224,16 @@ The run request body/idempotency contract is unchanged. New versions now validat
 Phase 4 runs support exact registered tool revisions. Policy/fallback bindings remain unsupported. New persisted errors include TOOL_NOT_ALLOWED, TOOL_VALIDATION_FAILED, POLICY_DENIED, TOOL_OUTPUT_INVALID, TOOL_INTERNAL_ERROR, TOOL_TIMEOUT, RUN_TIMEOUT, STEP_LIMIT_EXCEEDED, TOOL_CALL_LIMIT_EXCEEDED, DEMO_CUSTOMER_NOT_FOUND, TOOL_OUTCOME_UNKNOWN, and FAKE_TOOL_REQUEST_INVALID. Phase 3's TOOL_CALLING_NOT_IMPLEMENTED applies to historical runs; current unpermitted tool requests are recorded and denied.
 
 Example fake test message after binding lookup_customer: `/tool lookup_customer {"customer_id":"cust_001"}`. A successful tool flow records two model calls and one tool call. The command does not switch the server's configured provider. Current monetary enforcement is DEFERRED_TO_PHASE_7; policy boundary is LOCAL_DEMO_ONLY_PHASE_4. Refund approvals and external side effects remain unavailable.
+
+## Phase 5 policy and approval API
+
+All routes retain organization selection and the production guard. Lists accept limit/offset.
+
+- `POST /policies`: register/retrieve the installed demo-refund 1.0.0 revision, 200; no custom rules accepted by the implementation.
+- `GET /policies`: organization-owned revisions.
+- `POST /tools`: additionally accepts `issue_refund` 1.0.0.
+- `GET /approvals` (optional `run_id`) and `GET /approvals/{id}`: public approval evidence within the selected organization; private checkpoints are never returned.
+- `POST /approvals/{id}/approve` or `/deny`: body `{"reason":"Reviewed exact request"}`; requires `Authorization: Bearer <local-reviewer-token>`. Reviewer identity comes from server configuration, never body/header user IDs. Same-verdict retry returns the original decision; conflicts return 409.
+- `POST /runs/{id}/resume`: reviewer credential required, no client continuation payload. Loads and claims a waiting approved run; returns current terminal runs without executing again. Concurrent active resume returns 409. The separate decision/resume operations keep committed approval recoverable after restart.
+
+Missing reviewer configuration returns 503; invalid credential 401; foreign/missing evidence 404; missing policy, pending approval, incompatible checkpoint/provider, or inactive binding fail closed. An expired waiting approval cancels on decision/resume. Existing model/tool read endpoints show the resumed evidence. The current build is `forge-runtime-phase5-v1`.

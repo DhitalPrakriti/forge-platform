@@ -1,11 +1,13 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.approvals.models import DemoRefund
 from forge.tools.models import DemoTicket
 
 
@@ -55,6 +57,24 @@ class TicketOutput(ToolSchema):
     demo: Literal[True]
 
 
+class RefundInput(CustomerInput):
+    amount_usd: Annotated[str, StringConstraints(pattern=r"^(0|[1-9][0-9]{0,8})\.[0-9]{2}$")]
+
+    @field_validator("amount_usd")
+    @classmethod
+    def positive(cls, value):
+        if Decimal(value) <= 0:
+            raise ValueError("Amount must be positive")
+        return value
+
+
+class RefundOutput(CustomerInput):
+    refund_id: str
+    amount_usd: str
+    status: Literal["SIMULATED"]
+    demo: Literal[True]
+
+
 @dataclass(frozen=True)
 class Definition:
     name: str
@@ -86,6 +106,14 @@ class Definition:
 DEFINITIONS = {
     item.name: item
     for item in [
+        Definition(
+            "issue_refund",
+            "Record a simulated USD refund for a synthetic customer. No money moves. "
+            "Subject to deterministic refund policy and human approval.",
+            RefundInput,
+            RefundOutput,
+            risk_level="HIGH",
+        ),
         Definition(
             "lookup_customer",
             "Look up synthetic demo customer cust_001 or cust_002. No real customer data.",
@@ -138,6 +166,29 @@ async def execute_builtin(
                     "status": "SETTLED",
                 },
             ],
+            "demo": True,
+        }
+    if name == "issue_refund":
+        refund = await session.scalar(
+            select(DemoRefund).where(
+                DemoRefund.organization_id == organization_id,
+                DemoRefund.idempotency_key == idempotency_key,
+            )
+        )
+        if refund is None:
+            refund = DemoRefund(
+                organization_id=organization_id,
+                tool_call_id=tool_call_id,
+                idempotency_key=idempotency_key,
+                **arguments,
+            )
+            session.add(refund)
+            await session.flush()
+        return {
+            "refund_id": str(refund.id),
+            "customer_id": refund.customer_id,
+            "amount_usd": refund.amount_usd,
+            "status": "SIMULATED",
             "demo": True,
         }
     if name != "create_ticket":

@@ -20,6 +20,9 @@ jobs:
       FORGE_DATABASE_URL: postgresql+asyncpg://forge:forge_ci@127.0.0.1:5433/forge_frontend_test
       FORGE_ENVIRONMENT: test
       FORGE_MODEL_BACKEND: fake
+      # Disposable CI credential; never use for a local or deployed environment.
+      FORGE_APPROVAL_REVIEWER_TOKEN: ci-only-reviewer-credential-for-disposable-tests
+      FORGE_APPROVAL_REVIEWER_ID: 11111111-1111-4111-8111-111111111111
       FORGE_API_URL: http://127.0.0.1:8000
       NEXT_TELEMETRY_DISABLED: "1"
     defaults:

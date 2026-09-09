@@ -1,14 +1,17 @@
 import asyncio
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from time import monotonic
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.approvals.models import Approval
+from forge.approvals.policy import refund_decision, resolve_policy
 from forge.runtime.events import record_event
 from forge.runtime.models import Run
 from forge.tools.builtins import DEFINITIONS, ToolFailure, execute_builtin
@@ -61,10 +64,8 @@ class ToolHub:
                 )
             except ValidationError:
                 failure = "TOOL_VALIDATION_FAILED"
-        if not failure and tool is None:
+        if tool is None:
             failure = "TOOL_NOT_ALLOWED"
-        if not failure and run.tool_calls_count >= MAX_TOOL_CALLS:
-            failure = "TOOL_CALL_LIMIT_EXCEEDED"
         if not failure and remaining_seconds <= 0:
             failure = "RUN_TIMEOUT"
         request_hash = hashlib.sha256(
@@ -75,43 +76,50 @@ class ToolHub:
             ).encode()
         ).hexdigest()
         existing = await self.repository.call(model_call_id, call_index)
-        if existing:
+        if not existing and not failure and run.tool_calls_count >= MAX_TOOL_CALLS:
+            failure = "TOOL_CALL_LIMIT_EXCEEDED"
+        if existing and existing.status != "WAITING_FOR_APPROVAL":
             return self.reuse(existing, request_hash)
+        if existing and existing.request_hash != request_hash:
+            raise ToolFailure("TOOL_IDEMPOTENCY_CONFLICT")
         if run.status != "WAITING_FOR_TOOL":
             raise ToolFailure("INVALID_RUN_STATE")
-        call_id = uuid4()
-        call = ToolCall(
-            id=call_id,
-            run_id=run.id,
-            model_call_id=model_call_id,
-            call_index=call_index,
-            tool_id=tool.id if tool else None,
-            requested_name=name[:200],
-            status="RUNNING",
-            arguments=normalized,
-            decision="DENY",
-            idempotency_key=f"forge:{run.id}:{call_id}",
-            request_hash=request_hash,
-        )
-        self.session.add(call)
-        run.tool_calls_count += 1
-        record_event(
-            self.session,
-            run,
-            "TOOL_CALL_REQUESTED",
-            {"tool_call_id": str(call_id), "tool_name": name[:200]},
-        )
-        try:
-            # Stable identity is durable before any handler runs.
-            await self.session.commit()
-        except IntegrityError as exc:
-            await self.session.rollback()
-            if getattr(exc.orig, "sqlstate", None) != "23505":
-                raise
-            existing = await self.repository.call(model_call_id, call_index)
-            if existing is None:
-                raise
-            return self.reuse(existing, request_hash)
+        if existing:
+            call = existing
+        else:
+            call_id = uuid4()
+            call = ToolCall(
+                id=call_id,
+                run_id=run.id,
+                model_call_id=model_call_id,
+                call_index=call_index,
+                tool_id=tool.id if tool else None,
+                requested_name=name[:200],
+                status="RUNNING",
+                arguments=normalized,
+                decision="DENY",
+                idempotency_key=f"forge:{run.id}:{call_id}",
+                request_hash=request_hash,
+            )
+            self.session.add(call)
+            run.tool_calls_count += 1
+            record_event(
+                self.session,
+                run,
+                "TOOL_CALL_REQUESTED",
+                {"tool_call_id": str(call_id), "tool_name": name[:200]},
+            )
+            try:
+                # Stable identity is durable before any handler runs.
+                await self.session.commit()
+            except IntegrityError as exc:
+                await self.session.rollback()
+                if getattr(exc.orig, "sqlstate", None) != "23505":
+                    raise
+                existing = await self.repository.call(model_call_id, call_index)
+                if existing is None:
+                    raise
+                return self.reuse(existing, request_hash)
         started = monotonic()
         call.started_at = datetime.now(UTC)
         authorized = False
@@ -124,7 +132,63 @@ class ToolHub:
                         min(tool.timeout_seconds, max(0, deadline - monotonic()))
                     ):
                         fresh = await self.repository.tool(run.organization_id, tool.id, lock=True)
-                        if fresh is None or decision(fresh, definition) != "ALLOW":
+                        if name == "issue_refund":
+                            if (
+                                fresh is None
+                                or fresh.status != "ACTIVE"
+                                or any(
+                                    getattr(fresh, k) != v for k, v in definition.metadata().items()
+                                )
+                            ):
+                                raise ToolFailure("POLICY_DENIED")
+                            policy = await resolve_policy(
+                                self.session,
+                                run.organization_id,
+                                run.execution_config.get("policy_version_ids", []),
+                                required=True,
+                            )
+                            verdict = refund_decision(normalized)
+                            if verdict == "DENY":
+                                raise ToolFailure("POLICY_DENIED")
+                            if verdict == "REQUIRE_APPROVAL":
+                                approval = await self.session.scalar(
+                                    select(Approval).where(Approval.tool_call_id == call.id)
+                                )
+                                if approval is None:
+                                    approval = Approval(
+                                        organization_id=run.organization_id,
+                                        run_id=run.id,
+                                        tool_call_id=call.id,
+                                        policy_id=policy.id,
+                                        summary=(
+                                            f"Simulated USD {normalized['amount_usd']} refund "
+                                            f"to {normalized['customer_id']}"
+                                        ),
+                                        requested_payload=normalized,
+                                        request_hash=request_hash,
+                                        expires_at=min(
+                                            datetime.now(UTC) + timedelta(hours=24),
+                                            run.started_at
+                                            + timedelta(
+                                                seconds=run.execution_config["max_runtime_seconds"]
+                                            ),
+                                        ),
+                                    )
+                                    self.session.add(approval)
+                                    call.status = "WAITING_FOR_APPROVAL"
+                                    call.decision = "REQUIRE_APPROVAL"
+                                    await self.session.flush()
+                                    # Committed with checkpoint and waiting state.
+                                    return call
+                                if (
+                                    approval.status != "APPROVED"
+                                    or approval.expires_at <= datetime.now(UTC)
+                                    or approval.request_hash != request_hash
+                                    or approval.requested_payload != normalized
+                                    or approval.policy_id != policy.id
+                                ):
+                                    raise ToolFailure("APPROVAL_INVALID")
+                        elif fresh is None or decision(fresh, definition) != "ALLOW":
                             raise ToolFailure("POLICY_DENIED")
                         authorized = True
                         result = await execute_builtin(

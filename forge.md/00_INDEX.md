@@ -113,3 +113,5 @@ Read `12_ARCHITECTURE_DECISIONS.md` alongside the relevant phase specification. 
 - `FORGE_FRONTEND_SPEC.md`: full frontend blueprint and the current local testing slice.
 - `../docs/FRONTEND_LOCAL_CONSOLE_SESSION.md`: supported F1–F3 implementation, review map, and verification.
 - `../docs/PHASE_4_IMPLEMENTATION_REPORT.md`: local Tool Hub, bounded model/tool loop, console extension, and review walkthrough.
+
+- [Phase 5 implementation and review](../docs/PHASE_5_IMPLEMENTATION_REPORT.md)

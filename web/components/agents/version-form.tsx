@@ -24,6 +24,7 @@ export function VersionForm({
   const form = useForm<VersionValues>({
     resolver: zodResolver(versionSchema),
     defaultValues: {
+      policy_version_ids: source?.policy_version_ids || [],
       tool_version_ids: source?.tool_version_ids || [],
       version: "",
       goal: source?.goal || "",
@@ -51,7 +52,7 @@ export function VersionForm({
           source?.runtime_template_revision || "standard-agent-v1",
         fallback_models: source?.fallback_models || [],
         tool_version_ids: values.tool_version_ids,
-        policy_version_ids: source?.policy_version_ids || [],
+        policy_version_ids: values.policy_version_ids,
         evaluation_suite_version_id:
           source?.evaluation_suite_version_id ?? null,
       };
@@ -67,6 +68,11 @@ export function VersionForm({
   const tools = useQuery({
     queryKey: [org, "tools"],
     queryFn: () => api.tools(org),
+    refetchOnWindowFocus: "always",
+  });
+  const policies = useQuery({
+    queryKey: [org, "policies"],
+    queryFn: () => api.policies(org),
     refetchOnWindowFocus: "always",
   });
   const errors = form.formState.errors;
@@ -182,8 +188,8 @@ export function VersionForm({
             />
           </Field>
           <div className="inset-note">
-            Policies, fallback models, and evaluation suites remain deferred.
-            Existing bindings for those features are preserved when cloning.
+            Fallback models and evaluation suites remain deferred. Existing
+            bindings for those features are preserved when cloning.
           </div>
         </div>
       </Card>
@@ -260,6 +266,41 @@ export function VersionForm({
           only to the local database. Selecting a tool is permission, not a
           promise that a real model will call it.
         </p>
+      </Card>
+      <Card
+        title="Refund policy"
+        subtitle="Select the immutable policy revision when allowing issue_refund."
+      >
+        <ErrorNotice
+          error={policies.error}
+          retry={() => void policies.refetch()}
+        />
+        {policies.data?.map((policy) => (
+          <label className="tool-choice" key={policy.id}>
+            <input
+              type="checkbox"
+              value={policy.id}
+              {...form.register("policy_version_ids")}
+            />
+            <span>
+              {policy.name} v{policy.version}
+              <span className="mono break-word">{policy.id}</span>
+            </span>
+          </label>
+        ))}
+        {!policies.data?.length && (
+          <p>Register the refund policy in Tool Hub, then refresh.</p>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void policies.refetch()}
+        >
+          Refresh policies
+        </Button>
+        {errors.policy_version_ids && (
+          <p role="alert">Select at most one valid policy revision.</p>
+        )}
       </Card>
       <ErrorNotice error={create.error} />
       <div className="actions">

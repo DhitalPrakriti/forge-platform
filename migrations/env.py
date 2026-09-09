@@ -5,6 +5,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from forge.agents import models  # noqa: F401 -- register domain metadata
+from forge.approvals import models as approval_models  # noqa: F401
 from forge.core.config import Settings
 from forge.db.base import Base
 from forge.runtime import models as runtime_models  # noqa: F401 -- register runtime metadata

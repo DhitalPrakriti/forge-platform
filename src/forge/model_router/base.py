@@ -25,7 +25,8 @@ class ModelResult:
     usage: dict = field(default_factory=dict)
     tool_requests: list[dict] = field(default_factory=list)
     finish_reason: str | None = None
-    # Ephemeral provider continuation (including opaque signatures); never API/DB evidence.
+    # Private provider continuation; persisted only in protected approval checkpoints.
+    # Never included in public run/model-call evidence or repr.
     provider_content: object | None = field(default=None, repr=False)
 
 

@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +12,9 @@ class Settings(BaseSettings):
     environment: Literal["local", "test", "production"] = "local"
     database_url: SecretStr
     database_timeout_seconds: float = Field(default=3, gt=0, le=60)
+
+    approval_reviewer_token: SecretStr | None = Field(default=None, min_length=32)
+    approval_reviewer_id: UUID | None = None
 
     model_backend: Literal["gemini", "fake"] = "gemini"
     gemini_api_key: SecretStr | None = None

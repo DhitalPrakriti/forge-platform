@@ -2378,3 +2378,7 @@ Can I recover quickly?
 ---
 
 **End of FORGE Frontend Specification**
+
+## Phase 5 console extension
+
+Tool Hub registers `issue_refund` and the installed refund policy. New versions select an exact policy revision alongside tool revisions. The run inspector shows approval amount/customer/hash/expiry/status/reviewer/reason and provides confirmed approve/deny followed by explicit resume. The reviewer token stays in component memory and clears on reload/workspace/run changes; the same-origin proxy forwards it only to decision/resume routes. Waiting runs poll. This is the supported local Phase 5 slice, not the full production approvals dashboard or login system.

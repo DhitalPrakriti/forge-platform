@@ -166,7 +166,6 @@ def test_unverified_staging_references_are_blocked(client):
     aid = agent(client, scope)
     payload = version_payload(
         evaluation_suite_version_id=str(uuid4()),
-        policy_version_ids=[str(uuid4())],
     )
     response = client.post(f"/api/v1/agents/{aid}/versions", headers=scope, json=payload)
     assert response.status_code == 201

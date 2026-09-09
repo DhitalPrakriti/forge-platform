@@ -68,7 +68,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-future">
           <ShieldCheck size={19} />
           <strong>From draft to production</strong>
-          <p>Evaluations, approvals, and deployments arrive in later phases.</p>
+          <p>
+            Refund approvals are available in each run. Evaluations and
+            deployments arrive later.
+          </p>
           <span className="tiny-label">ON THE ROADMAP</span>
         </div>
         <div className="sidebar-bottom">
@@ -136,7 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
         <footer className="footer">
           <span>FORGE / Agent operations</span>
-          <span>Local console · Phase 4 backend</span>
+          <span>Local console · Phase 5 backend</span>
         </footer>
       </div>
     </div>

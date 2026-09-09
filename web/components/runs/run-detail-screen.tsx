@@ -20,10 +20,13 @@ import {
   Loading,
   PageHeading,
 } from "../ui/shared";
+import { ApprovalPanel } from "../approvals/approval-panel";
 import { ToolCallInspector } from "../tools/tool-call-inspector";
 import { Button } from "../ui/button";
 const active = (status?: string) =>
-  ["CREATED", "RUNNING", "WAITING_FOR_TOOL"].includes(status || "");
+  ["CREATED", "RUNNING", "WAITING_FOR_TOOL", "WAITING_FOR_APPROVAL"].includes(
+    status || "",
+  );
 export function RunDetailScreen({ runId }: { runId: string }) {
   const { workspace } = useWorkspace();
   const client = useQueryClient();
@@ -290,6 +293,12 @@ export function RunDetailScreen({ runId }: { runId: string }) {
               ))}
             </Card>
           </div>
+          <ApprovalPanel
+            key={workspace.id + runId}
+            org={workspace.id}
+            runId={runId}
+            status={value.status}
+          />
           <ToolCallInspector
             org={workspace.id}
             runId={runId}

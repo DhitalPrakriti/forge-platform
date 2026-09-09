@@ -57,3 +57,9 @@ New immutable versions pin valid same-organization tool revisions in both their 
 Record denied requests even without an allowed tool ID, hence nullable `tool_calls.tool_id`. Each request gets stable identity before execution. Demo ticket writes, validated results, and completion evidence share a database transaction; savepoint rollback prevents a failed/invalid output from retaining the local write. This does not solve external integration crash windows or provide worker recovery.
 
 Keep the provider adapter boundary: Gemini SDK automatic execution remains disabled, function response IDs and signed content are preserved in transient history, and no hidden thought content is exposed as run evidence. The fake adapter uses explicit `/tool` commands solely to demonstrate the same Tool Hub pipeline without a provider key.
+
+## 11. Phase 5 local approval continuation
+
+Accepted for this implementation session: immutable installed refund policy, local simulated refunds, authenticated local reviewer with a server-owned UUID, and private PostgreSQL checkpoints. No dependency was added. Review credentials are local operator access, not production organization membership; the production guard remains enforced.
+
+Approval commits resume intent as an event. Explicit authenticated in-process resume is used until Phase 6 introduces queue/outbox workers. Claiming a waiting run is serialized in PostgreSQL. Recovery is supported across approval pauses, not arbitrary crashes after execution claims. Exact Gemini content/signatures are privately serialized for continuation, with schema/build/SDK compatibility checked before resume. No checkpoint contents are exposed as public trace evidence. Preserve original deadlines while waiting; expiry is processed on decision/resume until a worker sweeper exists.

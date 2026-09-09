@@ -341,3 +341,79 @@ test("register tools, clone permissions, create a demo ticket, and inspect the c
     page.getByRole("button", { name: "Disable create_ticket", exact: true }),
   ).toBeVisible();
 });
+
+test("refund policy, human approval, reload, and resume", async ({
+  page,
+}, testInfo) => {
+  const token = process.env.FORGE_APPROVAL_REVIEWER_TOKEN;
+  test.skip(
+    !token,
+    "Configure the local API reviewer token for this approval integration test.",
+  );
+  await workspace(page, "Refund review");
+  const initial = await version(page);
+  await page.goto("/tools");
+  await page
+    .getByRole("button", { name: "Register issue_refund", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Disable issue_refund", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Register refund policy", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Registered policy");
+  await page.goto(initial);
+  await page.getByRole("link", { name: "Clone version" }).click();
+  await page.getByLabel("Version label").fill("v2-refunds");
+  await page.getByRole("checkbox", { name: /issue_refund/ }).check();
+  await page.getByRole("checkbox", { name: /demo-refund/ }).check();
+  await page.getByRole("button", { name: "Save immutable version" }).click();
+  await page.getByRole("link", { name: "Test version" }).click();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill(
+      '/tool issue_refund {"customer_id":"cust_001","amount_usd":"425.00"}',
+    );
+  await page.getByRole("button", { name: "Run agent", exact: true }).click();
+  await expect(page).toHaveURL(/\/runs\/[0-9a-f-]+$/);
+  await expect(
+    page.getByRole("heading", { name: "Refund approvals" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Simulated USD 425.00 refund to cust_001",
+    }),
+  ).toBeVisible();
+  await page.getByLabel("Local reviewer credential").fill(token!);
+  await page
+    .getByLabel("Decision reason")
+    .fill("Reviewed exact demo amount and customer.");
+  await page
+    .getByRole("button", { name: "Approve refund", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Save decision", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Resume approved run" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Local reviewer credential")).toHaveValue("");
+  await page.getByLabel("Local reviewer credential").fill(token!);
+  await page.getByRole("button", { name: "Resume approved run" }).click();
+  await expect(page.locator(".metadata-strip")).toContainText("COMPLETED");
+  await expect(
+    page.getByText("SIMULATED", { exact: false }).first(),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("refund-completed-mobile.png"),
+    fullPage: true,
+  });
+});

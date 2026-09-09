@@ -73,3 +73,27 @@ describe("same-origin backend proxy", () => {
     expect(await result.text()).not.toContain("credential-bearing");
   });
 });
+
+it("forwards reviewer credentials only to approval and resume actions", async () => {
+  const fetch = vi
+    .fn()
+    .mockImplementation(() => Promise.resolve(new Response("{}")));
+  vi.stubGlobal("fetch", fetch);
+  for (const path of [
+    "approvals/11111111-1111-4111-8111-111111111111/approve",
+    "runs/11111111-1111-4111-8111-111111111111/resume",
+    "agents",
+  ]) {
+    await POST(
+      new NextRequest(`http://localhost:3100/api/forge/${path}`, {
+        method: "POST",
+        headers: { authorization: "Bearer local-test-credential" },
+      }),
+      context(path),
+    );
+    const init = fetch.mock.calls.at(-1)![1];
+    expect(init.headers.get("Authorization")).toBe(
+      path === "agents" ? null : "Bearer local-test-credential",
+    );
+  }
+});

@@ -1,6 +1,8 @@
 import { request } from "./client";
 import type {
   Agent,
+  Policy,
+  Approval,
   ModelCall,
   Organization,
   Run,
@@ -18,6 +20,27 @@ const json = (body: unknown): RequestInit => ({
 });
 const id = encodeURIComponent;
 export const api = {
+  policies: (org: string) => request<Policy[]>("/policies?limit=100", org),
+  registerPolicy: (org: string) =>
+    request<Policy>("/policies", org, { method: "POST" }),
+  approvals: (org: string, runId: string) =>
+    request<Approval[]>(`/approvals?run_id=${id(runId)}&limit=100`, org),
+  decideApproval: (
+    org: string,
+    approvalId: string,
+    verdict: "approve" | "deny",
+    reason: string,
+    token: string,
+  ) =>
+    request<Approval>(`/approvals/${id(approvalId)}/${verdict}`, org, {
+      ...json({ reason }),
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  resumeRun: (org: string, runId: string, token: string) =>
+    request<Run>(`/runs/${id(runId)}/resume`, org, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   tools: (org: string) => request<Tool[]>("/tools?limit=100", org),
   registerTool: (org: string, name: ToolName) =>
     request<Tool>("/tools", org, json({ name, version: "1.0.0" })),

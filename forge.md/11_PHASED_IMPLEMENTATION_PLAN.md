@@ -207,3 +207,7 @@ That tells a complete production engineering story.
 Phase 3 introduces a small FORGE-owned in-process execution path with a fake model for deterministic tests and a Gemini adapter. No durable recovery claim is made yet. Phase 4 routes every tool through the Tool Hub. Phase 5 adds persistent approval continuation and tests restart/resume. Phase 6 adds queue/workers, Redis locks, transactional outbox, durable checkpoint recovery, duplicate delivery, and crash tests. Phase 7 adds OpenAI, provider health, and coordinated fallback/retry accounting.
 
 Finish each requested phase/session with the review map required by `10_CODEX_WORKING_RULES.md`. The six-week mapping is an estimate; user code review remains part of the work, and later phases do not start automatically.
+
+## Phase 5 implementation review
+
+Phase 5 is implemented in `../docs/PHASE_5_IMPLEMENTATION_REPORT.md`: local refund thresholds, immutable policy bindings, local reviewer authentication, approval evidence, PostgreSQL checkpoints, explicit restart-safe approval resume, and console controls. Review and test this slice before starting Phase 6. Queue/outbox workers and general crash recovery were not added.

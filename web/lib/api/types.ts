@@ -96,7 +96,7 @@ export interface RunRequest {
 }
 
 export type ToolName =
-  "lookup_customer" | "lookup_transactions" | "create_ticket";
+  "lookup_customer" | "lookup_transactions" | "create_ticket" | "issue_refund";
 export interface Tool {
   id: string;
   organization_id: string;
@@ -131,4 +131,23 @@ export interface ToolCall {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+}
+
+export interface Policy {
+  id: string;
+  organization_id: string;
+  name: string;
+  version: string;
+  rules: Record<string, string>;
+}
+export interface Approval {
+  id: string;
+  run_id: string;
+  status: string;
+  summary: string;
+  requested_payload: Record<string, unknown>;
+  request_hash: string;
+  expires_at: string;
+  reviewed_by: string | null;
+  decision_reason: string | null;
 }

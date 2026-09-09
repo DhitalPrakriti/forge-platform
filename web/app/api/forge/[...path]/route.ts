@@ -5,6 +5,9 @@ export const runtime = "nodejs";
 const uuid = "[0-9a-fA-F-]{36}";
 const routes: Record<string, RegExp[]> = {
   GET: [
+    /^policies$/,
+    /^approvals$/,
+    new RegExp(`^approvals/${uuid}$`),
     /^tools$/,
     new RegExp(`^tools/${uuid}$`),
     /^health\/ready$/,
@@ -14,6 +17,9 @@ const routes: Record<string, RegExp[]> = {
     new RegExp(`^runs/${uuid}(/events|/model-calls|/tool-calls)?$`),
   ],
   POST: [
+    /^policies$/,
+    new RegExp(`^approvals/${uuid}/(approve|deny)$`),
+    new RegExp(`^runs/${uuid}/resume$`),
     /^tools$/,
     /^organizations$/,
     /^agents$/,
@@ -59,6 +65,10 @@ async function proxy(
   for (const name of ["X-Organization-ID", "Idempotency-Key"]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
+  }
+  if (/^(approvals\/.+\/(approve|deny)|runs\/.+\/resume)$/.test(path)) {
+    const auth = request.headers.get("authorization");
+    if (auth) headers.set("Authorization", auth);
   }
   try {
     const upstream = new URL(
