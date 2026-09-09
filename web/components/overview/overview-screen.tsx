@@ -1,7 +1,15 @@
 "use client";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Bot, FileCode2, Play, Radio } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  FileCode2,
+  Play,
+  Radio,
+  ShieldCheck,
+  Wrench,
+} from "lucide-react";
 import { api } from "@/lib/api/forge";
 import { useWorkspace } from "../layout/providers";
 import { WorkspaceScreen } from "../workspace/workspace-screen";
@@ -20,8 +28,8 @@ export function OverviewScreen() {
     <>
       <PageHeading
         eyebrow="WORKSPACE OVERVIEW"
-        title="Your agents, from the inside."
-        description={`Build and test in ${workspace.name}. Every version and run is backed by your local API.`}
+        title="Agent operations"
+        description={`Your command center for building, testing, and inspecting agents in ${workspace.name}.`}
         action={
           <Button asChild>
             <Link href="/agents/new">
@@ -34,10 +42,10 @@ export function OverviewScreen() {
       <section className="overview-banner">
         <div>
           <span className="tiny-label">BUILD → VERSION → RUN → INSPECT</span>
-          <h2>A clearer view of what you’re building.</h2>
+          <h2>Build with purpose. Run with confidence.</h2>
           <p>
-            Create an agent, save its instructions as a version, and follow a
-            test run from input to output.
+            Turn instructions into immutable versions. Test their behavior,
+            review tool decisions, and follow every run from input to outcome.
           </p>
           <Button asChild variant="outline">
             <Link href="/agents">
@@ -46,17 +54,20 @@ export function OverviewScreen() {
             </Link>
           </Button>
         </div>
-        <div className="pipeline-visual" aria-hidden="true">
+        <div className="pipeline-visual" aria-label="Agent execution workflow">
           <span>
             <Bot size={25} />
+            <small>DEFINE</small>
           </span>
           <i />
           <span>
             <FileCode2 size={25} />
+            <small>VERSION</small>
           </span>
           <i />
           <span>
             <Play size={25} />
+            <small>EXECUTE</small>
           </span>
         </div>
       </section>
@@ -95,6 +106,32 @@ export function OverviewScreen() {
           <div className="metric-value">Model + tools</div>
           <p className="muted">Provider configured on the backend</p>
         </Card>
+      </div>
+      <div className="operation-links">
+        <Link href="/agents" className="operation-link">
+          <Bot size={20} />
+          <div>
+            <strong>Agent registry</strong>
+            <span>Manage identities and versions</span>
+          </div>
+          <ArrowRight size={16} />
+        </Link>
+        <Link href="/runs" className="operation-link">
+          <ShieldCheck size={20} />
+          <div>
+            <strong>Execution & approvals</strong>
+            <span>Inspect runs and review actions</span>
+          </div>
+          <ArrowRight size={16} />
+        </Link>
+        <Link href="/tools" className="operation-link">
+          <Wrench size={20} />
+          <div>
+            <strong>Tool registry</strong>
+            <span>Inspect capabilities and risk</span>
+          </div>
+          <ArrowRight size={16} />
+        </Link>
       </div>
       <div className="two-column">
         <Card

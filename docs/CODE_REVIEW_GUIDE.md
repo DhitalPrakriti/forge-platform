@@ -314,3 +314,9 @@ Review questions: Can changed customer/amount reuse approval? What happens when 
 Concrete walk: browser Run agent → `RunService.execute` → QUEUED/checkpoint/outbox commit → `Worker.publish` → Redis hint → `Worker.process` obtains PostgreSQL + Redis ownership → `DurableEngine.execute` → `RuntimeEngine.model_step` → saved response/TOOLS cursor → `ToolHub.execute` → validated local effect + result + cursor + outbox commit → next model turn → terminal checkpoint. The browser polls this evidence rather than holding an HTTP request open for execution.
 
 Review questions: Which commits can happen before an external model call? Why is an unknown model attempt charged/countable even without a response? Which lock prevents duplicate writes after a Redis lease expires? Where does a killed tool transaction roll back? Why can the local handler recover a RUNNING ledger entry, while an external handler cannot? What prevents `/retry` from repeating a completed refund? How do approval expiry and cancellation wake a stopped worker? Which settings must API and worker share?
+
+## Frontend presentation refresh
+
+Read `FRONTEND_DESIGN_REFRESH.md`, then `web/components/layout/app-shell.tsx`, `web/components/overview/overview-screen.tsx`, and `web/app/globals.css`. The shell supplies workspace context; the overview queries existing API records and links to operational screens. Shared CSS applies the same visual language to forms, tables, tools, approvals, and run inspectors. `web/tests/e2e/console.spec.ts` checks overview navigation and mobile overflow alongside the existing end-to-end workflows.
+
+Review question: does every displayed metric describe its actual source and scope, and can the user distinguish current capabilities from planned ones?

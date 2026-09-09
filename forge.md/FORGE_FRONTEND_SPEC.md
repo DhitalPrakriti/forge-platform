@@ -2386,3 +2386,7 @@ Tool Hub registers `issue_refund` and the installed refund policy. New versions 
 ## Phase 6 console behavior
 
 Run creation receives 202/QUEUED and navigates to the inspector. The inspector polls QUEUED/RUNNING/RETRYING/tool/approval waits, displays worker progress, offers confirmed cancellation, and can create a linked retry when the server permits it. Approval confirmation schedules automatic continuation for queued runs; legacy runs retain explicit resume. Existing safety checks remain server-side. Full queue administration and production IAM are outside this console slice.
+
+## Presentation refresh — September 9, 2026
+
+The existing console now uses a dark green navigation rail, light content surfaces, consistent form/table/card styling, semantic queued/retry/approval badges, location context, and an operations overview with working registry/run/tool shortcuts. This implements visual polish for the supported console only; it does not claim production IAM, deployments, evaluations, global run metrics, or provider routing. See `../docs/FRONTEND_DESIGN_REFRESH.md` for the change and verification record.

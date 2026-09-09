@@ -39,6 +39,30 @@ test("create, run, inspect, clone, archive, and switch workspaces", async ({
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await workspace(page, "Review workspace");
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Agent operations", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Tool registry Inspect capabilities and risk" })
+    .click();
+  await expect(page).toHaveURL(/\/tools$/);
+  await page.goto("/");
+  await page.screenshot({
+    path: testInfo.outputPath("overview-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("overview-mobile.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1050 });
   const versionUrl = await version(page);
   await page.getByRole("link", { name: "Test version" }).click();
   await page
@@ -117,7 +141,9 @@ test("create, run, inspect, clone, archive, and switch workspaces", async ({
   await page
     .getByLabel("Active workspace")
     .selectOption({ label: "Review workspace" });
-  await expect(page.getByText("Your agents, from the inside.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Agent operations", exact: true }),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("overview-desktop.png"),
     fullPage: true,

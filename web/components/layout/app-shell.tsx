@@ -45,9 +45,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="brand-symbol">
             <Boxes size={23} />
           </span>
-          FORGE<span className="brand-dot">®</span>
+          FORGE<span className="brand-dot">CONSOLE</span>
         </Link>
-        <div className="sidebar-caption">BUILD & OPERATE</div>
+        <div className="sidebar-caption">CONTROL PLANE</div>
         <nav aria-label="Main navigation">
           {navigation.map(({ href, label, icon: Icon }) => (
             <Link
@@ -67,12 +67,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-future">
           <ShieldCheck size={19} />
-          <strong>From draft to production</strong>
+          <strong>Built for accountable agents</strong>
           <p>
             Refund approvals are available in each run. Evaluations and
             deployments arrive later.
           </p>
-          <span className="tiny-label">ON THE ROADMAP</span>
+          <span className="tiny-label">EVALUATE → RELEASE → DEPLOY</span>
         </div>
         <div className="sidebar-bottom">
           <span className="status-dot" />
@@ -125,6 +125,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <main id="main" className="main-content">
+          <div className="context-bar" aria-label="Current location">
+            <span>Control plane</span>
+            <span aria-hidden="true">/</span>
+            <strong>
+              {navigation.find(
+                (item) => item.href !== "/" && pathname.startsWith(item.href),
+              )?.label || "Overview"}
+            </strong>
+            <span className="context-environment">Development workspace</span>
+          </div>
           {storageWarning && (
             <p role="status" className="notice">
               Browser storage is unavailable. Workspace selection lasts only for
