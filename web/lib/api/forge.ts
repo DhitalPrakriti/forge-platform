@@ -20,6 +20,13 @@ const json = (body: unknown): RequestInit => ({
 });
 const id = encodeURIComponent;
 export const api = {
+  cancelRun: (org: string, runId: string) =>
+    request<Run>(`/runs/${id(runId)}/cancel`, org, { method: "POST" }),
+  retryRun: (org: string, runId: string, key: string) =>
+    request<Run>(`/runs/${id(runId)}/retry`, org, {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+    }),
   policies: (org: string) => request<Policy[]>("/policies?limit=100", org),
   registerPolicy: (org: string) =>
     request<Policy>("/policies", org, { method: "POST" }),

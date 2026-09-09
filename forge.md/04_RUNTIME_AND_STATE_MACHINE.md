@@ -159,3 +159,19 @@ Tool validation/permission/output errors fail visibly. Tool/run timeouts end TIM
 ## Phase 5 approval continuation
 
 WAITING_FOR_TOOL may transition to WAITING_FOR_APPROVAL. The waiting call, approval, checkpoint, event, and run state commit atomically. After a saved human decision, explicit resume claims the run as RUNNING and re-enters the saved tool batch. Completed calls are reused; the pending call verifies exact approval before execution. Multiple approval pauses retain earlier exchanges. No previous model turn is repeated. Checkpoint serialization preserves private provider content, schema/build versions, and original execution limits. Queue-based recovery remains Phase 6.
+
+## Phase 6 durable worker contract
+
+Default execution is now `queued`: `POST /runs` commits CREATED/QUEUED, schema-2 MODEL checkpoint, and PostgreSQL outbox intent, then returns 202. The API does not own provider execution. `FORGE_EXECUTION_MODE=inline` retains the legacy Phase 5 development/test path and does not provide Phase 6 recovery guarantees. Existing runs retain their original build/configuration; no historical checkpoints are rewritten.
+
+A coalesced `run_outbox` row per run stores generation, due time, publication time, and completion. It is updated atomically with each execution checkpoint. Redis provides bounded notification hints and expiring run leases; the worker also polls due PostgreSQL rows. Publishing before marking the outbox can duplicate a notification, which is harmless. Redis loss cannot erase the database cursor or dispatch intent. New execution acquisition waits for Redis availability; an already fenced executor can finish under PostgreSQL ownership.
+
+Each worker holds a PostgreSQL session advisory lock on the same physical connection used for execution transactions, in addition to a renewable Redis run lease. Lock expiry cannot create a second executor. Provider calls release transaction row locks but keep the session fence. Process death releases the PostgreSQL lock; Redis leases expire.
+
+Schema-2 cursors record MODEL or TOOLS, exact model-call ID/response/private provider continuation, model step/attempt, tool index/results, and prior exchanges. Save after model intent/response, each successful local tool/result, approval pause/decision, retry decision, and terminal transition. Local effects/results/checkpoint/outbox commit together. Recovery of an unfinished installed idempotent LOCAL_DEMO_V1 call reuses its stable ledger identity; an uncommitted effect rolled back on process death. Committed effects have committed cursors/results. Unknown external tool outcomes remain blocked, and no external tool connector is installed.
+
+Provider transient errors (timeout/unavailable) and an interrupted unknown model attempt use exponential backoff with jitter and a persisted cap (default 3, configurable 1–5 attempts per model turn). Permanent auth/request/schema/policy failures are not retried. Unknown model requests may have incurred charges; no exactly-once provider claim is made. `current_step` counts model turns, while `model_calls_count` counts attempts. Original wall-clock limits include queue time, retries, and approval waiting.
+
+Cancellation writes a durable control record and wakes the worker. The worker checks before/after model work and before tool authorization; already authorized effects may finish. It then records CANCELLED and a terminal checkpoint. Approval decisions enqueue automatically; waiting approvals schedule a deadline wake-up and expire without browser activity. Terminal runs never execute on duplicate delivery.
+
+Explicit `/retry` creates a new linked run with the same immutable version/input and a distinct idempotency key. A successful or unknown MEDIUM/HIGH-risk effect blocks explicit repetition with RETRY_REQUIRES_RECONCILIATION. Dry-run replay remains unimplemented.

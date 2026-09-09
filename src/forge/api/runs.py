@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.registry import Limit, Scope, require_development_registry
 from forge.db.session import get_session
+from forge.durability.service import DurabilityService
 from forge.model_router.base import ModelAdapter
 from forge.model_router.fake import FakeAdapter
 from forge.model_router.gemini import GeminiAdapter
@@ -34,7 +35,15 @@ Key = Annotated[
 ]
 
 
-@router.post("/runs", response_model=RunRead, status_code=201)
+@router.post(
+    "/runs",
+    response_model=RunRead,
+    status_code=202,
+    responses={
+        200: {"description": "Existing idempotent run"},
+        201: {"description": "Legacy inline run created"},
+    },
+)
 async def create_run(
     payload: RunCreate,
     scope: Scope,
@@ -45,7 +54,9 @@ async def create_run(
     response: Response,
 ):
     run, created = await service.execute(scope, payload, key, adapter, request.app.state.settings)
-    response.status_code = 201 if created else 200
+    response.status_code = (
+        (202 if run.execution_config.get("execution_mode") == "queued" else 201) if created else 200
+    )
     return run
 
 
@@ -68,3 +79,25 @@ async def get_events(
 @router.get("/runs/{run_id}/model-calls", response_model=list[ModelCallRead])
 async def get_model_calls(run_id: UUID, scope: Scope, service: Service):
     return await service.calls(scope, run_id)
+
+
+@router.post("/runs/{run_id}/cancel", response_model=RunRead, status_code=202)
+async def cancel_run(run_id: UUID, scope: Scope, service: Service):
+    return await DurabilityService(service.session).cancel(scope, run_id)
+
+
+@router.post("/runs/{run_id}/retry", response_model=RunRead, status_code=202)
+async def retry_run(
+    run_id: UUID,
+    scope: Scope,
+    key: Key,
+    service: Service,
+    adapter: Adapter,
+    request: Request,
+    response: Response,
+):
+    run, created = await DurabilityService(service.session).retry(
+        scope, run_id, key, adapter, request.app.state.settings
+    )
+    response.status_code = 202 if created else 200
+    return run

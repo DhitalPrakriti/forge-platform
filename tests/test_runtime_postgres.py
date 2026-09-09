@@ -36,6 +36,7 @@ def client(database_url):
     config = Settings(
         _env_file=None,
         environment="test",
+        execution_mode="inline",
         database_url=database_url,
         model_backend="fake",
         model_timeout_seconds=0.2,

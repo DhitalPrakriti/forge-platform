@@ -31,6 +31,7 @@ class Run(Base):
         Index("ix_runs_status_created", "status", "created_at"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    retry_of_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"))
     agent_id: Mapped[UUID] = mapped_column(ForeignKey("agents.id"))
     agent_version_id: Mapped[UUID] = mapped_column(ForeignKey("agent_versions.id"))

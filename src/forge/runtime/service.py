@@ -11,6 +11,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from forge.approvals.policy import resolve_policy
 from forge.core.config import Settings
 from forge.core.errors import DomainError
+from forge.durability.store import BUILD, checkpoint
 from forge.model_router.base import ModelAdapter, ModelRequest
 from forge.runtime.engine import RuntimeEngine
 from forge.runtime.events import transition_run
@@ -61,9 +62,16 @@ class RunService:
         key: str,
         adapter: ModelAdapter,
         settings: Settings,
+        retry_of: UUID | None = None,
     ) -> tuple[Run, bool]:
         request_hash = hashlib.sha256(
-            json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()
+            json.dumps(
+                {
+                    **payload.model_dump(mode="json"),
+                    **({"retry_of": str(retry_of)} if retry_of else {}),
+                },
+                sort_keys=True,
+            ).encode()
         ).hexdigest()
         existing = await self.repository.by_key(organization_id, key)
         if existing:
@@ -113,16 +121,22 @@ class RunService:
             ],
         )
         run = Run(
+            retry_of_run_id=retry_of,
             organization_id=organization_id,
             agent_id=version.agent_id,
             agent_version_id=version.id,
             status=RunState.CREATED.value,
             state_version=0,
             input=payload.input.model_dump(),
-            runtime_build_version="forge-runtime-phase5-v1",
+            runtime_build_version=BUILD
+            if settings.execution_mode == "queued"
+            else "forge-runtime-phase5-v1",
             idempotency_key=key,
             request_hash=request_hash,
             execution_config={
+                "execution_mode": settings.execution_mode,
+                "model_max_attempts": settings.model_max_attempts,
+                "retry_base_seconds": settings.retry_base_seconds,
                 "provider": adapter.provider,
                 "tool_version_ids": [str(tool.id) for tool in tools],
                 "max_tool_calls": MAX_TOOL_CALLS,
@@ -146,6 +160,22 @@ class RunService:
             self.session.add(
                 RunEvent(run_id=run.id, sequence_number=0, event_type="CREATED", payload={})
             )
+            if settings.execution_mode == "queued":
+                run.started_at = datetime.now(UTC)
+                self.transition(run, RunState.QUEUED)
+                await checkpoint(
+                    self.session,
+                    run,
+                    {
+                        "phase": "MODEL",
+                        "step": 1,
+                        "attempt": 0,
+                        "exchanges": [],
+                        "model_call_id": None,
+                    },
+                )
+                await self.session.commit()
+                return run, True
             self.transition(run, RunState.RUNNING)
             run.started_at = datetime.now(UTC)
             run.current_step = 1

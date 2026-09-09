@@ -211,3 +211,7 @@ Finish each requested phase/session with the review map required by `10_CODEX_WO
 ## Phase 5 implementation review
 
 Phase 5 is implemented in `../docs/PHASE_5_IMPLEMENTATION_REPORT.md`: local refund thresholds, immutable policy bindings, local reviewer authentication, approval evidence, PostgreSQL checkpoints, explicit restart-safe approval resume, and console controls. Review and test this slice before starting Phase 6. Queue/outbox workers and general crash recovery were not added.
+
+## Phase 6 implementation review
+
+Phase 6 is implemented and documented in `../docs/PHASE_6_IMPLEMENTATION_REPORT.md`: PostgreSQL dispatch/checkpoints, Redis coordination, worker execution, bounded transient model retries, cancellation/timeout/approval expiry, safe local-effect recovery, explicit linked retry, and subprocess-kill tests. Review this slice before Phase 7 (model routing/fallback). No OpenAI adapter, circuit breaker, or monetary enforcement was started.

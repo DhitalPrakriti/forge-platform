@@ -41,6 +41,7 @@ export interface Version extends VersionInput {
     | "ARCHIVED";
 }
 export interface Run {
+  retry_of_run_id?: string | null;
   id: string;
   organization_id: string;
   agent_id: string;

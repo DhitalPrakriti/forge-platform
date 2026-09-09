@@ -7,6 +7,9 @@ from sqlalchemy import select
 from forge.approvals.models import Approval, RunCheckpoint
 from forge.approvals.policy import resolve_policy
 from forge.core.errors import DomainError
+from forge.durability.store import BUILD, enqueue
+from forge.durability.store import checkpoint as durable_checkpoint
+from forge.durability.store import latest as latest_checkpoint
 from forge.model_router.base import ModelRequest
 from forge.runtime.checkpoints import load_exchanges, load_result
 from forge.runtime.engine import RuntimeEngine
@@ -87,12 +90,26 @@ class ApprovalService:
                 record_event(
                     self.session, run, "RESUME_REQUESTED", {"approval_id": str(approval.id)}
                 )
+        if run.runtime_build_version == BUILD:
+            saved = await latest_checkpoint(self.session, run.id)
+            terminal = RunState(run.status) in TERMINAL
+            await durable_checkpoint(
+                self.session,
+                run,
+                {"phase": "TERMINAL"} if terminal else saved.runtime_state,
+                terminal=terminal,
+            )
         await self.session.commit()
         return approval
 
     async def resume(self, org, run_id, adapter):
         run = await self.locked_run(org, run_id)
         if RunState(run.status) in TERMINAL:
+            return run
+        if run.runtime_build_version == BUILD:
+            # The durable worker revalidates approval/expiry. Repeated wake-ups are harmless.
+            await enqueue(self.session, run.id)
+            await self.session.commit()
             return run
         if run.status != "WAITING_FOR_APPROVAL":
             raise DomainError("RUN_NOT_WAITING", "Run is not waiting for approval.", 409)

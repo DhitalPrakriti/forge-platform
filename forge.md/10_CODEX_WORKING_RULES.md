@@ -120,3 +120,8 @@ Rollback must point to an immutable previous version.
 - At session completion, list every changed file and directory, explain its purpose and caller/callee relationships, and give a recommended reading order plus one concrete request walkthrough.
 - State dependencies, migrations, commands, results, limitations, and review questions. Distinguish planned modules from existing code and generated artifacts.
 - Maintain `docs/CODE_REVIEW_GUIDE.md` as structure evolves. Add a session record under `docs/` for substantive changes. Do not automatically begin the next phase after a session report.
+
+
+## User-approved Git workflow
+
+Following the user's standing instruction on 2026-09-09, commit and push completed work to `dev` at the end of each active work session after required checks. Include the session report and exclude credentials/generated artifacts. Do not push implementation to `main` or merge a PR without a separate request. This applies when a session is active; no unattended daily scheduler is implied.

@@ -1,16 +1,16 @@
 # FORGE
 
-FORGE is a production control plane for AI agents. The source of truth is [the specification pack](forge.md/00_INDEX.md). Phases 1–5 are implemented: foundation, development agent registry, model/tool execution, and local refund policy with persistent human approval continuation.
+FORGE is a production control plane for AI agents. The source of truth is [the specification pack](forge.md/00_INDEX.md). Phases 1–6 are implemented: registry, model/tool execution, refund approvals, and durable queued workers with recovery, retries, cancellation, and timeout.
 
 ## Included
 
 FastAPI application factory, Pydantic Settings, SQLAlchemy 2.x async PostgreSQL connections/sessions, Alembic baseline, health endpoints, structured errors, tests, Ruff, locked dependencies, Docker Compose, and GitHub Actions CI.
 
-The new [local web console](web/README.md) supports workspace setup, agents, immutable versions, test runs, and execution inspection. It uses the Phase 5 API with demo tool registration, binding, and call inspection; future staging/evaluation/deployment screens are not implemented.
+The new [local web console](web/README.md) supports workspace setup, agents, immutable versions, test runs, and execution inspection. It uses the Phase 6 API with demo tool registration, binding, and call inspection; future staging/evaluation/deployment screens are not implemented.
 
 ## Web console — easier local testing
 
-Keep PostgreSQL and the migrated API running on `127.0.0.1:8000`. To test without a provider key, start the API with `FORGE_MODEL_BACKEND=fake` (see backend setup below).
+Keep PostgreSQL, Redis, the worker, and the migrated API running. The API listens on `127.0.0.1:8000`. To test without a provider key, use `FORGE_MODEL_BACKEND=fake` for both API and worker. New runs return QUEUED and execute in the worker.
 
 With Node.js 22 installed, open another terminal:
 
@@ -38,9 +38,11 @@ cp .env.example .env
 Start PostgreSQL 16, creating the database/user specified in `.env`. With Docker installed:
 
 ```sh
-docker compose up -d db
+docker compose up -d db redis
 uv run alembic upgrade head
 uv run uvicorn forge.main:create_app --factory --reload
+# In another terminal using the same .env:
+uv run python -m forge.durability.worker
 ```
 
 Then open `/docs` at `http://localhost:8000`, or:
@@ -58,7 +60,7 @@ To run the complete local stack:
 docker compose up --build --wait api
 ```
 
-Compose waits for PostgreSQL health, runs a one-shot migration, then starts the API as a non-root container user. Credentials in Compose and `.env.example` are local examples. Supply production secrets externally; never commit `.env`. No production deployment has been configured or performed.
+Compose waits for PostgreSQL/Redis health, runs a one-shot migration, and starts the API plus worker as non-root container users. Compose defaults to fake mode. Credentials in Compose and `.env.example` are local examples. Supply production secrets externally; never commit `.env`. No production deployment has been configured or performed.
 
 ## Configuration
 
@@ -78,7 +80,7 @@ uv run ruff format --check .
 uv run pytest -q
 ```
 
-The PostgreSQL integration test skips unless `FORGE_TEST_DATABASE_URL` is set. It upgrades and downgrades the schema: use a disposable database only.
+PostgreSQL integration tests skip unless `FORGE_TEST_DATABASE_URL` is set. Durability tests also require `FORGE_TEST_REDIS_URL` pointing to disposable Redis. It upgrades and downgrades the schema: use a disposable database only.
 
 ```sh
 FORGE_TEST_DATABASE_URL=postgresql+asyncpg://forge:forge_local@localhost:5432/forge_test uv run pytest -q
@@ -100,11 +102,11 @@ Create `forge_test` first. The ordinary `FORGE_DATABASE_URL` is used by standalo
 - `forge.md`: source-of-truth specs and architecture decisions.
 - `docs/PHASE_1_IMPLEMENTATION_REPORT.md`: detailed change and verification record.
 
-Organization, agent, and immutable version tables are implemented. Gemini and a labelled fake backend support initial execution. Worker/Redis/queue, fallback, authentication, evaluations, and dashboards remain in later phases.
+Organization, agent, and immutable version tables are implemented. Gemini and a labelled fake backend support initial execution. Durable queue/Redis workers and the local console are implemented. Provider fallback, production authentication, evaluations, and the full dashboard remain in later phases.
 
 ## Architecture direction and session reviews
 
-Agent execution will use a FORGE-owned runtime and state machine with provider adapters. See [runtime design](forge.md/14_FORGE_RUNTIME_DECISION.md). PostgreSQL will store durable checkpoints; LangChain/LangGraph and graph databases are not required. Current implementation includes the Phase 5 bounded model/tool runtime and persistent approval continuation.
+Agent execution will use a FORGE-owned runtime and state machine with provider adapters. See [runtime design](forge.md/14_FORGE_RUNTIME_DECISION.md). PostgreSQL stores durable checkpoints; LangChain/LangGraph and graph databases are not required. Current implementation includes Phase 6 durable model/tool execution and persistent approval continuation.
 
 Start each code review with [the directory and walkthrough guide](docs/CODE_REVIEW_GUIDE.md). Session reports explain each changed file, its purpose, validation results, and limitations.
 
@@ -176,3 +178,14 @@ Test with `/tool issue_refund {"customer_id":"cust_001","amount_usd":"425.00"}`.
 Configure `FORGE_APPROVAL_REVIEWER_TOKEN` (random, at least 32 characters) and `FORGE_APPROVAL_REVIEWER_ID` (UUID) on the API. For this local session, an ignored, permission-600 `.tools/local-reviewer.env` was created and loaded into the API. Open that file locally and copy just the token value into **Local reviewer credential** on the run page. Enter a reason, confirm **Approve refund**, then **Resume approved run**. The token is not saved in browser storage. Never commit the credential file.
 
 The saved decision and checkpoint survive an API restart. Repeated resume never creates another refund after completion. General execution-crash recovery, scheduled expiry, queue workers, production IAM, and real payments are outside this phase. See [the complete Phase 5 review](docs/PHASE_5_IMPLEMENTATION_REPORT.md).
+
+
+## Phase 6: durable worker execution
+
+New runs return **202 Accepted / QUEUED** and the inspector polls saved progress. Approval schedules worker continuation automatically. **Cancel run** requests a stop at the next safe boundary; it does not undo completed effects. **Retry as new run** creates a linked execution only when the server can rule out a successful/unknown side effect.
+
+The worker entry point is `uv run python -m forge.durability.worker`. Configure the same database, Redis URL, provider, and provider credential as the API. PostgreSQL owns dispatch/checkpoints; Redis notifications can be lost without losing work. Do not use transaction-pooled database connections for the worker: its advisory lock requires a pinned PostgreSQL session.
+
+Current Mac processes use PostgreSQL on 55432, Redis on 56379, API on 8000, and web on 3000. Redis was installed with Homebrew and launched on loopback without automatic login startup. In each backend terminal set `FORGE_DATABASE_URL=postgresql+asyncpg://forge@127.0.0.1:55432/forge_local`, `FORGE_REDIS_URL=redis://127.0.0.1:56379/0`, and `FORGE_MODEL_BACKEND=fake`. For the API, also source ignored `.tools/local-reviewer.env` for approval credentials. Default execution mode is queued; explicit inline mode retains legacy development behavior without worker recovery.
+
+An interrupted model request can be retried with uncertain usage/charges; saved responses and committed local effects are reused. External side-effect integrations and cost enforcement remain later work. See [Phase 6 report](docs/PHASE_6_IMPLEMENTATION_REPORT.md) for every file, crash tests, commands, and limitations.

@@ -10,10 +10,12 @@ export function ApprovalPanel({
   org,
   runId,
   status,
+  automatic = false,
 }: {
   org: string;
   runId: string;
   status: string;
+  automatic?: boolean;
 }) {
   const client = useQueryClient();
   const [token, setToken] = useState("");
@@ -47,7 +49,11 @@ export function ApprovalPanel({
   return (
     <Card
       title="Refund approvals"
-      subtitle="Review the exact request. Approval is saved before you resume the run."
+      subtitle={
+        automatic
+          ? "Review the exact request. Approval schedules the worker to continue automatically."
+          : "Review the exact request. Approval is saved before you resume the run."
+      }
     >
       <ErrorNotice
         error={approvals.error || action.error}
@@ -115,7 +121,7 @@ export function ApprovalPanel({
                   disabled={!token || action.isPending}
                   onClick={() => action.mutate({ id: a.id, verdict: "resume" })}
                 >
-                  Resume approved run
+                  {automatic ? "Wake worker again" : "Resume approved run"}
                 </Button>
               )}
             </div>
@@ -132,7 +138,11 @@ export function ApprovalPanel({
             ? "Approve this exact refund?"
             : "Deny this refund?"
         }
-        description="Your decision and reason will be saved. Denial cancels the run. Approval allows you to resume while the request remains valid and unexpired."
+        description={
+          automatic
+            ? "Your decision and reason will be saved. Approval schedules execution of this exact request; denial cancels the run."
+            : "Your decision and reason will be saved. Denial cancels the run. Approval allows you to resume while the request remains valid and unexpired."
+        }
         confirmLabel="Save decision"
         pending={action.isPending}
         onConfirm={() => confirm && action.mutate(confirm)}

@@ -121,6 +121,7 @@ def test_restart_approve_resume_exactly_once(client, database_url):
     settings = Settings(
         _env_file=None,
         environment="test",
+        execution_mode="inline",
         database_url=database_url,
         model_backend="fake",
         approval_reviewer_token=TOKEN,

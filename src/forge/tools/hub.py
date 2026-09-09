@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.approvals.models import Approval
 from forge.approvals.policy import refund_decision, resolve_policy
+from forge.durability.models import RunControl
 from forge.runtime.events import record_event
 from forge.runtime.models import Run
 from forge.tools.builtins import DEFINITIONS, ToolFailure, execute_builtin
@@ -36,6 +37,9 @@ class ToolHub:
         request: dict,
         bound_tools: list[Tool],
         remaining_seconds: float,
+        *,
+        recover_local: bool = False,
+        on_complete=None,
     ) -> ToolCall:
         deadline = monotonic() + remaining_seconds
         name = request.get("name")
@@ -78,7 +82,17 @@ class ToolHub:
         existing = await self.repository.call(model_call_id, call_index)
         if not existing and not failure and run.tool_calls_count >= MAX_TOOL_CALLS:
             failure = "TOOL_CALL_LIMIT_EXCEEDED"
-        if existing and existing.status != "WAITING_FOR_APPROVAL":
+        local_recovery = (
+            recover_local
+            and existing
+            and existing.status == "RUNNING"
+            and tool is not None
+            and definition is not None
+            and tool.handler_type == "LOCAL_DEMO_V1"
+            and tool.idempotency_supported
+            and not failure
+        )
+        if existing and existing.status != "WAITING_FOR_APPROVAL" and not local_recovery:
             return self.reuse(existing, request_hash)
         if existing and existing.request_hash != request_hash:
             raise ToolFailure("TOOL_IDEMPOTENCY_CONFLICT")
@@ -132,6 +146,12 @@ class ToolHub:
                         min(tool.timeout_seconds, max(0, deadline - monotonic()))
                     ):
                         fresh = await self.repository.tool(run.organization_id, tool.id, lock=True)
+                        if recover_local and await self.session.scalar(
+                            select(RunControl.cancel_requested_at).where(
+                                RunControl.run_id == run.id
+                            )
+                        ):
+                            raise ToolFailure("RUN_CANCELLED")
                         if name == "issue_refund":
                             if (
                                 fresh is None
@@ -235,7 +255,9 @@ class ToolHub:
                 "error_code": failure,
             },
         )
-        # For local demo writes, ticket + validated result + evidence commit atomically.
+        if on_complete is not None:
+            await on_complete(call)
+        # For local demo writes, effect + result + checkpoint + outbox commit atomically.
         await self.session.commit()
         return call
 

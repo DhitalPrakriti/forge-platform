@@ -56,7 +56,7 @@ test("create, run, inspect, clone, archive, and switch workspaces", async ({
   await expect(
     page.getByRole("heading", { name: "Event timeline" }),
   ).toBeVisible();
-  await expect(page.locator(".timeline li")).toHaveCount(3);
+  await expect(page.locator(".timeline")).toContainText("COMPLETED");
   await expect(page.getByText("forge-fake-v1", { exact: true })).toBeVisible();
   const runUrl = page.url();
   const runId = runUrl.split("/").at(-1)!;
@@ -299,10 +299,16 @@ test("register tools, clone permissions, create a demo ticket, and inspect the c
   );
   await page.getByRole("button", { name: "Run agent", exact: true }).click();
   const run = await (await completed).json();
-  expect(run.status).toBe("COMPLETED");
-  expect(run.model_calls_count).toBe(2);
-  expect(run.tool_calls_count).toBe(1);
+  expect(run.status).toBe("QUEUED");
   await expect(page).toHaveURL(new RegExp(`/runs/${run.id}$`));
+  await expect(page.locator(".metadata-strip")).toContainText("COMPLETED");
+  const finalRun = await (
+    await page.request.get(`/api/forge/runs/${run.id}`, {
+      headers: { "X-Organization-ID": run.organization_id },
+    })
+  ).json();
+  expect(finalRun.model_calls_count).toBe(2);
+  expect(finalRun.tool_calls_count).toBe(1);
   const call = page.locator(".tool-call");
   await expect(call).toContainText("create_ticket");
   await expect(call).toContainText("ALLOW");
@@ -342,7 +348,7 @@ test("register tools, clone permissions, create a demo ticket, and inspect the c
   ).toBeVisible();
 });
 
-test("refund policy, human approval, reload, and resume", async ({
+test("refund policy, human approval, and automatic worker continuation", async ({
   page,
 }, testInfo) => {
   const token = process.env.FORGE_APPROVAL_REVIEWER_TOKEN;
@@ -395,13 +401,8 @@ test("refund policy, human approval, reload, and resume", async ({
   await page
     .getByRole("button", { name: "Save decision", exact: true })
     .click();
-  await expect(
-    page.getByRole("button", { name: "Resume approved run" }),
-  ).toBeVisible();
+  // A saved decision dispatches the queued run without a separate resume request.
   await page.reload();
-  await expect(page.getByLabel("Local reviewer credential")).toHaveValue("");
-  await page.getByLabel("Local reviewer credential").fill(token!);
-  await page.getByRole("button", { name: "Resume approved run" }).click();
   await expect(page.locator(".metadata-strip")).toContainText("COMPLETED");
   await expect(
     page.getByText("SIMULATED", { exact: false }).first(),
@@ -416,4 +417,78 @@ test("refund policy, human approval, reload, and resume", async ({
     path: testInfo.outputPath("refund-completed-mobile.png"),
     fullPage: true,
   });
+});
+
+test("retry a failed queued run creates a linked run", async ({ page }) => {
+  await workspace(page);
+  await version(page);
+  await page.getByRole("link", { name: "Test version" }).click();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill('/tool lookup_customer {"customer_id":"cust_001"}');
+  await page.getByRole("button", { name: "Run agent", exact: true }).click();
+  await expect(page.locator(".metadata-strip")).toContainText("FAILED");
+  const original = page.url().split("/").at(-1)!;
+  const response = page.waitForResponse((r) =>
+    r.url().endsWith(`/runs/${original}/retry`),
+  );
+  await page
+    .getByRole("button", { name: "Retry as new run", exact: true })
+    .click();
+  const retry = await (await response).json();
+  expect(retry.retry_of_run_id).toBe(original);
+  expect(retry.id).not.toBe(original);
+  await expect(page).toHaveURL(new RegExp(`/runs/${retry.id}$`));
+});
+
+test("cancel control confirms and polls worker completion", async ({
+  page,
+}) => {
+  await workspace(page);
+  const org = await page.getByLabel("Active workspace").inputValue();
+  const runId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  let cancelled = false;
+  const fixture = () => ({
+    id: runId,
+    organization_id: org,
+    agent_id: crypto.randomUUID(),
+    agent_version_id: crypto.randomUUID(),
+    status: cancelled ? "CANCELLED" : "QUEUED",
+    state_version: 1,
+    input: { message: "Cancellation fixture" },
+    output: null,
+    error_code: cancelled ? "RUN_CANCELLED" : null,
+    current_step: 0,
+    model_calls_count: 0,
+    tool_calls_count: 0,
+    total_cost: null,
+    runtime_build_version: "test-fixture",
+    execution_config: { provider: "fake", execution_mode: "queued" },
+    started_at: now,
+    completed_at: cancelled ? now : null,
+    created_at: now,
+    updated_at: now,
+  });
+  await page.route(`**/api/forge/runs/${runId}`, (r) =>
+    r.fulfill({ json: fixture() }),
+  );
+  for (const suffix of ["events?*", "model-calls", "tool-calls?*"])
+    await page.route(`**/api/forge/runs/${runId}/${suffix}`, (r) =>
+      r.fulfill({ json: [] }),
+    );
+  await page.route(`**/api/forge/runs/${runId}/cancel`, (r) => {
+    cancelled = true;
+    return r.fulfill({ status: 202, json: fixture() });
+  });
+  await page.goto(`/runs/${runId}`);
+  await page.getByRole("button", { name: "Cancel run", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Request cancellation", exact: true })
+    .click();
+  await expect(page.locator(".metadata-strip")).toContainText("CANCELLED");
+  await expect(
+    page.getByRole("button", { name: "Cancel run", exact: true }),
+  ).toHaveCount(0);
 });

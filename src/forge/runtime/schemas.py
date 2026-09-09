@@ -21,6 +21,7 @@ class RunCreate(Schema):
 
 
 class RunRead(Schema):
+    retry_of_run_id: UUID | None = None
     id: UUID
     organization_id: UUID
     agent_id: UUID

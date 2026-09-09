@@ -237,3 +237,13 @@ All routes retain organization selection and the production guard. Lists accept 
 - `POST /runs/{id}/resume`: reviewer credential required, no client continuation payload. Loads and claims a waiting approved run; returns current terminal runs without executing again. Concurrent active resume returns 409. The separate decision/resume operations keep committed approval recoverable after restart.
 
 Missing reviewer configuration returns 503; invalid credential 401; foreign/missing evidence 404; missing policy, pending approval, incompatible checkpoint/provider, or inactive binding fail closed. An expired waiting approval cancels on decision/resume. Existing model/tool read endpoints show the resumed evidence. The current build is `forge-runtime-phase5-v1`.
+
+## Phase 6 API changes
+
+- New queued `POST /runs` returns **202 Accepted**, with persisted run ID and QUEUED status. Same-key/same-input replay returns 200/current run; changed input remains 409. Legacy inline test mode returns 201.
+- `POST /runs/{id}/cancel` returns 202/current run after a durable cancellation request. GET reflects terminal cancellation when the worker reaches its next safe boundary. Repeated/terminal cancellation has no repeated effect; foreign organization returns 404. Legacy runs return LEGACY_RUN_UNSUPPORTED for worker control.
+- `POST /runs/{id}/retry` requires Idempotency-Key and creates a new run linked by `retry_of_run_id`. Only FAILED/TIMED_OUT originals qualify. Any successful/unknown side effect blocks automatic repetition (409 RETRY_REQUIRES_RECONCILIATION). Same retry key/source is idempotent.
+- Approval decisions for Phase 6 enqueue continuation in their transaction. No separate resume button is required. Authenticated `/resume` can repeat the wake-up safely; it does not grant approval. Legacy Phase 5 explicit resume remains supported.
+- GET run/events/model-calls/tool-calls continues to provide evidence. CHECKPOINT, RETRYING, QUEUED, and cancellation/expiry events expose progress without private checkpoint payloads.
+
+Default runtime build: `forge-runtime-phase6-v1`; checkpoint schema: 2. Local organization/reviewer authentication limits and production guard are unchanged. API database readiness does not attest that a worker or Redis is available; an accepted run can remain queued while infrastructure is stopped.

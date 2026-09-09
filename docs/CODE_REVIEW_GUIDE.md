@@ -299,3 +299,18 @@ Start with `docs/PHASE_5_IMPLEMENTATION_REPORT.md` for the complete file invento
 | `adapter.generate` | Receives tool results and generates final response; original tool-request turn is not repeated. |
 
 Review questions: Can changed customer/amount reuse approval? What happens when the tool is disabled? Where is the decision durable before resume? Which tables cannot be mutated? Why can a completed call be reused but an unknown RUNNING call not be retried? Which crash windows remain Phase 6? Why is a local reviewer credential not production membership IAM?
+
+## Phase 6 reading order: durable execution
+
+1. `durability/models.py`, migration 0006, and `durability/store.py`: PostgreSQL dispatch/control records, checkpoint version 2, and transaction ownership.
+2. `runtime/service.py`: POST persists QUEUED + checkpoint + outbox before returning 202. Follow this before reading worker code.
+3. `durability/queue.py` and `worker.py`: Redis notifications/leases plus a PostgreSQL advisory lock on the execution connection; why duplicate/missing notifications do not decide correctness.
+4. `durability/engine.py`: MODEL/TOOLS cursor, persisted attempt caps/backoff, private response reuse, checkpoints, expiry, and cancellation boundaries. `RuntimeEngine.model_step` remains the shared provider-call boundary.
+5. `tools/hub.py`: worker-only recovery of installed local idempotent calls; effect/result/cursor/outbox transaction. Other unknown outcomes remain blocked.
+6. `approvals/service.py`: queued decisions save continuation intent automatically; historical schema-1 explicit resume remains separate.
+7. `durability/service.py`, API routes, and frontend run screen: durable cancellation and a safe new linked retry. Read the refusal path before trying retries.
+8. `test_durability_postgres.py` and `worker_crash_driver.py`: actual process kills at model/transaction boundaries, stale Redis ownership, lost publication, retries, cancellation, expiry, and incompatible checkpoints.
+
+Concrete walk: browser Run agent → `RunService.execute` → QUEUED/checkpoint/outbox commit → `Worker.publish` → Redis hint → `Worker.process` obtains PostgreSQL + Redis ownership → `DurableEngine.execute` → `RuntimeEngine.model_step` → saved response/TOOLS cursor → `ToolHub.execute` → validated local effect + result + cursor + outbox commit → next model turn → terminal checkpoint. The browser polls this evidence rather than holding an HTTP request open for execution.
+
+Review questions: Which commits can happen before an external model call? Why is an unknown model attempt charged/countable even without a response? Which lock prevents duplicate writes after a Redis lease expires? Where does a killed tool transaction roll back? Why can the local handler recover a RUNNING ledger entry, while an external handler cannot? What prevents `/retry` from repeating a completed refund? How do approval expiry and cancellation wake a stopped worker? Which settings must API and worker share?

@@ -123,3 +123,9 @@ Approve/deny endpoints serialize on the run row and persist the first decision; 
 Expiry is the earlier of 24 hours and the original run deadline. Decision/resume requests materialize expiry and cancel the waiting run; there is no scheduled expiry sweeper yet. Approved evidence remains immutable after its authority expires. Denial/expiry closes the waiting tool call without execution. A process crash after a resume claim or during ordinary execution still needs Phase 6 recovery; unknown outcomes are not automatically replayed.
 
 Private checkpoints retain exact provider content, including opaque signatures needed for continuation. They have no public read endpoint and never enter logs or API evidence. Database administrators can access them: production storage encryption/retention and IAM remain deployment requirements. This supersedes the Phase 4 in-memory-only continuation limit.
+
+## Phase 6 continuation and effect recovery
+
+New queued runs resume automatically after an authenticated approval decision commits its schema-2 checkpoint and outbox intent. The worker checks the same exact policy/permission/payload/expiry before execution; a notification or raw resume request is never authorization. Pending approvals have durable expiry wake-ups. Old Phase 5 runs retain their explicit resume path.
+
+For installed local demo handlers, PostgreSQL effect/result/checkpoint/outbox atomicity permits recovery of an interrupted RUNNING call with its original key: either its transaction rolled back, or its completed result/cursor was saved. This exception is worker-only under the PostgreSQL execution fence and requires the installed LOCAL_DEMO_V1 metadata and idempotency support. It does not authorize automatic repetition of unknown external effects. Explicit retry of a failed run with an already successful/unknown side effect is blocked.

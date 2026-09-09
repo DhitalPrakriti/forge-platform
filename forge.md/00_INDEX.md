@@ -115,3 +115,5 @@ Read `12_ARCHITECTURE_DECISIONS.md` alongside the relevant phase specification. 
 - `../docs/PHASE_4_IMPLEMENTATION_REPORT.md`: local Tool Hub, bounded model/tool loop, console extension, and review walkthrough.
 
 - [Phase 5 implementation and review](../docs/PHASE_5_IMPLEMENTATION_REPORT.md)
+
+- [Phase 6 implementation and review](../docs/PHASE_6_IMPLEMENTATION_REPORT.md)

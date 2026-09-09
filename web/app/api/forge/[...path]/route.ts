@@ -26,6 +26,7 @@ const routes: Record<string, RegExp[]> = {
     new RegExp(`^agents/${uuid}/versions$`),
     new RegExp(`^agent-versions/${uuid}/archive$`),
     /^runs$/,
+    new RegExp(`^runs/${uuid}/(cancel|retry)$`),
   ],
   PATCH: [new RegExp(`^tools/${uuid}$`)],
 };

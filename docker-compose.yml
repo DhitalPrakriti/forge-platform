@@ -14,6 +14,16 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  redis:
+    image: redis:8
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   migrate:
     build: .
     environment:
@@ -22,15 +32,37 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  worker:
+    build: .
+    command: ["python", "-m", "forge.durability.worker"]
+    environment:
+      FORGE_DATABASE_URL: postgresql+asyncpg://forge:forge_local@db:5432/forge
+      FORGE_REDIS_URL: redis://redis:6379/0
+      FORGE_EXECUTION_MODE: queued
+      FORGE_MODEL_BACKEND: ${FORGE_MODEL_BACKEND:-fake}
+      FORGE_GEMINI_API_KEY: ${FORGE_GEMINI_API_KEY:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
   api:
     build: .
     environment:
       FORGE_DATABASE_URL: postgresql+asyncpg://forge:forge_local@db:5432/forge
+      FORGE_REDIS_URL: redis://redis:6379/0
+      FORGE_EXECUTION_MODE: queued
+      FORGE_MODEL_BACKEND: ${FORGE_MODEL_BACKEND:-fake}
+      FORGE_GEMINI_API_KEY: ${FORGE_GEMINI_API_KEY:-}
+      FORGE_APPROVAL_REVIEWER_TOKEN: ${FORGE_APPROVAL_REVIEWER_TOKEN:-}
+      FORGE_APPROVAL_REVIEWER_ID: ${FORGE_APPROVAL_REVIEWER_ID:-}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
+      worker:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=4)"]
       interval: 10s

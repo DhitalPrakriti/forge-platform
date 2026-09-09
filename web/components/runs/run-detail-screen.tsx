@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  useMutation,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -22,14 +23,35 @@ import {
 } from "../ui/shared";
 import { ApprovalPanel } from "../approvals/approval-panel";
 import { ToolCallInspector } from "../tools/tool-call-inspector";
+import { ConfirmDialog } from "../ui/confirm-dialog";
+import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 const active = (status?: string) =>
-  ["CREATED", "RUNNING", "WAITING_FOR_TOOL", "WAITING_FOR_APPROVAL"].includes(
-    status || "",
-  );
+  [
+    "CREATED",
+    "QUEUED",
+    "RUNNING",
+    "RETRYING",
+    "WAITING_FOR_TOOL",
+    "WAITING_FOR_APPROVAL",
+  ].includes(status || "");
 export function RunDetailScreen({ runId }: { runId: string }) {
   const { workspace } = useWorkspace();
   const client = useQueryClient();
+  const router = useRouter();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [retryKey] = useState(() => crypto.randomUUID());
+  const control = useMutation({
+    mutationFn: (action: "cancel" | "retry") =>
+      action === "cancel"
+        ? api.cancelRun(workspace!.id, runId)
+        : api.retryRun(workspace!.id, runId, `retry:${runId}:${retryKey}`),
+    onSuccess: (value) => {
+      setConfirmCancel(false);
+      void client.invalidateQueries({ queryKey: [workspace!.id] });
+      if (value.id !== runId) router.push(`/runs/${value.id}`);
+    },
+  });
   const [copyState, setCopyState] = useState("");
   const [storageWarning, setStorageWarning] = useState(false);
   const run = useQuery({
@@ -98,6 +120,55 @@ export function RunDetailScreen({ runId }: { runId: string }) {
                 Refresh
               </Button>
             }
+          />
+          <ErrorNotice error={control.error} />
+          {control.isSuccess &&
+            control.variables === "cancel" &&
+            active(value.status) && (
+              <p role="status" className="notice">
+                Cancellation requested. Waiting for the worker’s next safe
+                boundary.
+              </p>
+            )}
+          {value.retry_of_run_id && (
+            <Link className="text-link" href={`/runs/${value.retry_of_run_id}`}>
+              Retry of run {shortId(value.retry_of_run_id)}
+            </Link>
+          )}
+          {value.execution_config.execution_mode === "queued" && (
+            <div className="actions">
+              {active(value.status) && (
+                <Button
+                  variant="outline"
+                  disabled={control.isPending}
+                  onClick={() => setConfirmCancel(true)}
+                >
+                  Cancel run
+                </Button>
+              )}
+              {["FAILED", "TIMED_OUT"].includes(value.status) && (
+                <Button
+                  variant="outline"
+                  disabled={control.isPending}
+                  onClick={() => control.mutate("retry")}
+                >
+                  Retry as new run
+                </Button>
+              )}
+              <span className="muted">
+                Queued execution · progress is saved by the worker.
+              </span>
+            </div>
+          )}
+          <ConfirmDialog
+            open={confirmCancel}
+            onOpenChange={setConfirmCancel}
+            title="Cancel this run?"
+            description="The worker stops at its next safe boundary. An already authorized tool may finish; cancellation does not undo completed effects."
+            cancelLabel="Keep running"
+            confirmLabel="Request cancellation"
+            pending={control.isPending}
+            onConfirm={() => control.mutate("cancel")}
           />
           <div className="metadata-strip">
             <Badge>{value.status}</Badge>
@@ -298,6 +369,7 @@ export function RunDetailScreen({ runId }: { runId: string }) {
             org={workspace.id}
             runId={runId}
             status={value.status}
+            automatic={value.execution_config.execution_mode === "queued"}
           />
           <ToolCallInspector
             org={workspace.id}

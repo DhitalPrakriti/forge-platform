@@ -2382,3 +2382,7 @@ Can I recover quickly?
 ## Phase 5 console extension
 
 Tool Hub registers `issue_refund` and the installed refund policy. New versions select an exact policy revision alongside tool revisions. The run inspector shows approval amount/customer/hash/expiry/status/reviewer/reason and provides confirmed approve/deny followed by explicit resume. The reviewer token stays in component memory and clears on reload/workspace/run changes; the same-origin proxy forwards it only to decision/resume routes. Waiting runs poll. This is the supported local Phase 5 slice, not the full production approvals dashboard or login system.
+
+## Phase 6 console behavior
+
+Run creation receives 202/QUEUED and navigates to the inspector. The inspector polls QUEUED/RUNNING/RETRYING/tool/approval waits, displays worker progress, offers confirmed cancellation, and can create a linked retry when the server permits it. Approval confirmation schedules automatic continuation for queued runs; legacy runs retain explicit resume. Existing safety checks remain server-side. Full queue administration and production IAM are outside this console slice.
