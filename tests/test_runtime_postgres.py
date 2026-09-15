@@ -264,3 +264,28 @@ def test_provider_usage_and_effective_request_are_preserved(client):
     assert call["actual_model"] == "gemini-exact-revision"
     assert call["usage"] == {"total_token_count": 19}
     assert call["estimated_cost"] is None
+
+
+def test_followup_context_and_scope(client):
+    from uuid import uuid4
+
+    headers, version = setup_version(client)
+    first = post_run(client, headers, version, "My name is Alice").json()
+    body = {
+        "agent_version_id": version["id"],
+        "parent_run_id": first["id"],
+        "input": {"message": "What is my name?"},
+    }
+    headers["Idempotency-Key"] = uuid4().hex
+    second = client.post("/api/v1/runs", headers=headers, json=body)
+    assert second.status_code == 201, second.text
+    history = second.json()["execution_config"]["conversation_history"]
+    assert history[0] == {"role": "user", "content": "My name is Alice"}
+    assert history[1]["role"] == "assistant"
+    replay = client.post("/api/v1/runs", headers=headers, json=body)
+    assert replay.status_code == 200
+    assert replay.json()["id"] == second.json()["id"]
+    other_headers, other_version = setup_version(client)
+    body["agent_version_id"] = other_version["id"]
+    denied = client.post("/api/v1/runs", headers=other_headers, json=body)
+    assert denied.status_code == 404

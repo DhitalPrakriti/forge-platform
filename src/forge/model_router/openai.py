@@ -47,7 +47,7 @@ class OpenAIAdapter:
             raise DomainError("MODEL_UNSUPPORTED", "Use an OpenAI text model identifier.", 422)
 
     async def generate(self, request: ModelRequest) -> ModelResult:
-        inputs = [{"role": "user", "content": request.message}]
+        inputs = [*request.history, {"role": "user", "content": request.message}]
         for exchange in request.exchanges:
             content = exchange.response.provider_content
             if not isinstance(content, dict) or "openai_output" not in content:

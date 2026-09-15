@@ -51,9 +51,15 @@ class GeminiAdapter:
             )
 
     async def generate(self, request: ModelRequest) -> ModelResult:
-        contents = request.message
+        contents = [
+            types.Content(
+                role="model" if x["role"] == "assistant" else "user",
+                parts=[types.Part(text=x["content"])],
+            )
+            for x in request.history
+        ]
+        contents.append(types.Content(role="user", parts=[types.Part(text=request.message)]))
         if request.exchanges:
-            contents = [types.Content(role="user", parts=[types.Part(text=request.message)])]
             for exchange in request.exchanges:
                 # Preserve the original content/signatures, including after checkpoint restore.
                 contents.append(exchange.response.provider_content)

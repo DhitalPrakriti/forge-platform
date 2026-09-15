@@ -12,6 +12,7 @@ class ModelRequest:
     message: str
     timeout_seconds: float
     max_output_tokens: int
+    history: list[dict] = field(default_factory=list, repr=False)
     tools: list[dict] = field(default_factory=list)
     exchanges: list[ToolExchange] = field(default_factory=list, repr=False)
 

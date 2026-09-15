@@ -518,3 +518,37 @@ test("cancel control confirms and polls worker completion", async ({
     page.getByRole("button", { name: "Cancel run", exact: true }),
   ).toHaveCount(0);
 });
+
+test("follow-up conversation keeps earlier messages and run links", async ({
+  page,
+}) => {
+  await workspace(page, "Conversation review");
+  await version(page);
+  await page.getByRole("link", { name: "Test version" }).click();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill("My project is named FORGE.");
+  await page.getByRole("button", { name: "Run agent", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Continue the conversation" }),
+  ).toBeVisible();
+  const parentUrl = page.url();
+  await page.getByLabel("Follow-up message").fill("Explain the next step.");
+  await page.getByRole("button", { name: "Send follow-up" }).click();
+  await expect(page).not.toHaveURL(parentUrl);
+  await expect(
+    page.getByRole("heading", { name: "Earlier messages" }),
+  ).toBeVisible();
+  await expect(page.locator(".conversation-message").first()).toContainText(
+    "My project is named FORGE.",
+  );
+  await expect(
+    page.getByRole("link", { name: "View previous turn" }),
+  ).toHaveAttribute("href", new URL(parentUrl).pathname);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});

@@ -324,3 +324,7 @@ Review question: does every displayed metric describe its actual source and scop
 ## Phase 7 provider connection slice
 
 Read `PROVIDER_CONNECTION_SESSION.md` for every changed file, verification, and credential setup. Follow `model_router/factory.py` into `openai.py`, then API run admission, durable engine selection, and the private checkpoint codec. Gemini and OpenAI share FORGE's model/tool contract; HTTP error bodies and private provider continuation must not enter public evidence. Full Phase 7 fallback/health/breaker/accounting remains pending.
+
+## Pasted-code assistant and conversations
+
+Read `CODE_REVIEW_CONVERSATION_SESSION.md` for the complete file map. Follow `FollowUp` → `RunCreate.parent_run_id` → organization-scoped parent lookup → persisted conversation history → `ModelRequest.history` → provider-native user/assistant messages. Review the `inspect_python` tool through the existing Tool Hub, and verify no pasted code executes. Markdown is rendered only for display; saved evidence is unchanged.

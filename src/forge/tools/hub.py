@@ -88,7 +88,7 @@ class ToolHub:
             and existing.status == "RUNNING"
             and tool is not None
             and definition is not None
-            and tool.handler_type == "LOCAL_DEMO_V1"
+            and tool.handler_type in {"LOCAL_DEMO_V1", "LOCAL_STATIC_V1"}
             and tool.idempotency_supported
             and not failure
         )

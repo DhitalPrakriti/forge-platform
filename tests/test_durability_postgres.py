@@ -473,3 +473,37 @@ def test_routed_provider_pinned_between_api_and_worker(
     calls = client.get(f"/api/v1/runs/{run['id']}/model-calls", headers=headers).json()
     assert calls[0]["provider"] == provider
     assert calls[0]["actual_model"] == model
+
+
+def test_python_tool_and_followup_survive_worker_dispatch(client, database_url, redis_url):
+    from forge.model_router.base import ModelResult
+
+    headers, run = submit(
+        client, '/tool inspect_python {"code":"def divide(a,b): return a/b"}', tool="inspect_python"
+    )
+    process(database_url, redis_url, run)
+    parent = get(client, headers, run)
+    assert parent["status"] == "COMPLETED", parent
+    assert parent["tool_calls_count"] == 1
+    headers["Idempotency-Key"] = uuid4().hex
+    response = client.post(
+        "/api/v1/runs",
+        headers=headers,
+        json={
+            "agent_version_id": parent["agent_version_id"],
+            "parent_run_id": parent["id"],
+            "input": {"message": "Explain the inspection"},
+        },
+    )
+    assert response.status_code == 202, response.text
+
+    class ContextAdapter(FakeAdapter):
+        async def generate(self, request):
+            assert len(request.history) == 2
+            assert request.history[0]["role"] == "user"
+            assert "division_lines" in request.history[1]["content"]
+            assert request.tools[0]["name"] == "inspect_python"
+            return ModelResult(text="Context preserved", actual_model="fake", finish_reason="STOP")
+
+    process(database_url, redis_url, response.json(), ContextAdapter())
+    assert get(client, headers, response.json())["output"]["message"] == "Context preserved"

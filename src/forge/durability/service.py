@@ -57,5 +57,9 @@ class DurabilityService:
                 "automatic repetition is blocked.",
                 409,
             )
-        payload = RunCreate(agent_version_id=run.agent_version_id, input=run.input)
+        payload = RunCreate(
+            agent_version_id=run.agent_version_id,
+            input=run.input,
+            parent_run_id=run.execution_config.get("parent_run_id"),
+        )
         return await self.runs.execute(org, payload, key, adapter, settings, retry_of=run.id)

@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { MarkdownOutput } from "../ui/markdown-output";
+import { FollowUp } from "./follow-up";
 import { useEffect, useState } from "react";
 import {
   useMutation,
@@ -261,14 +263,50 @@ export function RunDetailScreen({ runId }: { runId: string }) {
               title="Output"
               subtitle="The saved response from the backend."
             >
-              <p className="preserve output-text">
-                {value.output?.message ??
+              <MarkdownOutput
+                text={
+                  value.output?.message ??
                   (active(value.status)
                     ? "Waiting for a result…"
-                    : "No output was recorded.")}
-              </p>
+                    : "No output was recorded.")
+                }
+              />
             </Card>
           </div>
+          {Array.isArray(value.execution_config.conversation_history) &&
+            value.execution_config.conversation_history.length > 0 && (
+              <Card title="Earlier messages">
+                {value.execution_config.conversation_history.map(
+                  (
+                    message: { role: string; content: string },
+                    index: number,
+                  ) => (
+                    <div className="conversation-message" key={index}>
+                      <strong>
+                        {message.role === "user" ? "You" : "Assistant"}
+                      </strong>
+                      <MarkdownOutput text={message.content} />
+                    </div>
+                  ),
+                )}
+              </Card>
+            )}
+          {typeof value.execution_config.parent_run_id === "string" && (
+            <Link
+              className="back-link"
+              href={`/runs/${value.execution_config.parent_run_id}`}
+            >
+              View previous turn
+            </Link>
+          )}
+          {value.status === "COMPLETED" && (
+            <FollowUp
+              key={value.id}
+              org={workspace.id}
+              runId={value.id}
+              versionId={value.agent_version_id}
+            />
+          )}
           <div className="inspector-grid">
             <Card
               title="Event timeline"

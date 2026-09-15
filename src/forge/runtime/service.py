@@ -68,7 +68,7 @@ class RunService:
         request_hash = hashlib.sha256(
             json.dumps(
                 {
-                    **payload.model_dump(mode="json"),
+                    **payload.model_dump(mode="json", exclude_none=True),
                     **({"retry_of": str(retry_of)} if retry_of else {}),
                 },
                 sort_keys=True,
@@ -103,10 +103,29 @@ class RunService:
             raise DomainError(
                 "TOOL_BINDING_INVALID", "Tool bindings do not match the immutable version.", 409
             )
+        history = []
+        if payload.parent_run_id:
+            parent = await self.repository.run(organization_id, payload.parent_run_id)
+            if parent is None:
+                raise DomainError("RUN_NOT_FOUND", "Conversation parent not found.", 404)
+            if parent.agent_version_id != version.id or parent.status != "COMPLETED":
+                raise DomainError(
+                    "CONVERSATION_INVALID", "Continue a completed run of this version.", 409
+                )
+            history = [
+                *parent.execution_config.get("conversation_history", []),
+                {"role": "user", "content": parent.input["message"]},
+                {"role": "assistant", "content": (parent.output or {}).get("message", "")},
+            ]
+            if len(history) > 20 or sum(len(x["content"]) for x in history) > 60000:
+                raise DomainError(
+                    "CONVERSATION_LIMIT", "Start a new conversation; context limit reached.", 422
+                )
         adapter = select_adapter(adapter, version.primary_model)
         adapter.validate(version.primary_model)
         timeout = min(settings.model_timeout_seconds, version.runtime_config["max_runtime_seconds"])
         request = ModelRequest(
+            history=history,
             model=version.primary_model,
             goal=version.goal,
             instructions=version.instructions,
@@ -136,6 +155,8 @@ class RunService:
             idempotency_key=key,
             request_hash=request_hash,
             execution_config={
+                "conversation_history": history,
+                "parent_run_id": str(payload.parent_run_id) if payload.parent_run_id else None,
                 "execution_mode": settings.execution_mode,
                 "model_max_attempts": settings.model_max_attempts,
                 "retry_base_seconds": settings.retry_base_seconds,

@@ -2390,3 +2390,7 @@ Run creation receives 202/QUEUED and navigates to the inspector. The inspector p
 ## Presentation refresh — September 9, 2026
 
 The existing console now uses a dark green navigation rail, light content surfaces, consistent form/table/card styling, semantic queued/retry/approval badges, location context, and an operations overview with working registry/run/tool shortcuts. This implements visual polish for the supported console only; it does not claim production IAM, deployments, evaluations, global run metrics, or provider routing. See `../docs/FRONTEND_DESIGN_REFRESH.md` for the change and verification record.
+
+## User-authorized conversation and code-review extension
+
+The user requested a useful code-review agent with follow-up chat on September 15, 2026. Output now renders Markdown/GFM with raw HTML and remote images disabled. Completed run inspectors offer a follow-up composer and prior-message history. Each turn is a separate inspectable run of the same immutable version; the server derives bounded text history from an organization-scoped completed parent. Tools remain version-bound. `inspect_python` inspects pasted Python syntax and structure without execution. This supersedes the earlier single-turn-only scope; full conversation management, streaming, arbitrary code execution and monetary enforcement remain unimplemented. See `../docs/CODE_REVIEW_CONVERSATION_SESSION.md`.

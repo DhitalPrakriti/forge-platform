@@ -16,6 +16,7 @@ class RunInput(Schema):
 
 
 class RunCreate(Schema):
+    parent_run_id: UUID | None = None
     agent_version_id: UUID
     input: RunInput
 

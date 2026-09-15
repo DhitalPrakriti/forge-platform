@@ -92,12 +92,17 @@ export interface ModelCall {
   completed_at: string | null;
 }
 export interface RunRequest {
+  parent_run_id?: string;
   agent_version_id: string;
   input: { message: string };
 }
 
 export type ToolName =
-  "lookup_customer" | "lookup_transactions" | "create_ticket" | "issue_refund";
+  | "lookup_customer"
+  | "lookup_transactions"
+  | "create_ticket"
+  | "issue_refund"
+  | "inspect_python";
 export interface Tool {
   id: string;
   organization_id: string;

@@ -178,6 +178,7 @@ class ApprovalService:
             goal=version.goal,
             instructions=version.instructions,
             message=run.input["message"],
+            history=config.get("conversation_history", []),
             timeout_seconds=config["timeout_seconds"],
             max_output_tokens=config["max_output_tokens"],
             tools=[

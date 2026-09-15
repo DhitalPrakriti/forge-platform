@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.approvals.models import DemoRefund
 from forge.tools.models import DemoTicket
+from forge.tools.python_inspection import PythonInput, PythonOutput, inspect_python
 
 
 class ToolFailure(Exception):
@@ -107,6 +108,14 @@ DEFINITIONS = {
     item.name: item
     for item in [
         Definition(
+            "inspect_python",
+            "Inspect pasted Python syntax, functions, classes, imports and division locations. "
+            "Does not execute code or prove correctness.",
+            PythonInput,
+            PythonOutput,
+            handler_type="LOCAL_STATIC_V1",
+        ),
+        Definition(
             "issue_refund",
             "Record a simulated USD refund for a synthetic customer. No money moves. "
             "Subject to deterministic refund policy and human approval.",
@@ -151,6 +160,8 @@ async def execute_builtin(
     tool_call_id: UUID,
     idempotency_key: str,
 ) -> dict:
+    if name == "inspect_python":
+        return inspect_python(arguments["code"])
     customer = CUSTOMERS.get(arguments["customer_id"])
     if customer is None:
         raise ToolFailure("DEMO_CUSTOMER_NOT_FOUND")

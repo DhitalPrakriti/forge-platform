@@ -52,13 +52,13 @@ export function ToolsScreen() {
       <PageHeading
         eyebrow="PHASE 5 / TOOL HUB"
         title="Give agents permission to act."
-        description="Register an installed demo tool, then select its exact revision when creating a new agent version."
+        description="Register an installed tool, then select its exact revision when creating a new agent version."
       />
       <div className="notice">
         <ShieldCheck size={18} />
         <span>
-          Local demo tools only. No external helpdesk, customer system, refund,
-          or message is contacted.
+          Local Python inspection and demo tools. No external helpdesk, customer
+          system, refund, or message is contacted.
         </span>
       </div>
       <ErrorNotice error={tools.error} retry={() => void tools.refetch()} />

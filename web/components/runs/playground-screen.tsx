@@ -77,7 +77,7 @@ export function PlaygroundScreen({
       <PageHeading
         eyebrow="PLAYGROUND"
         title="Give your agent a test run."
-        description="Send one message, then inspect the saved output, events, model calls, and tool calls."
+        description="Start a conversation, then ask follow-up questions from the run inspector."
       />
       <ErrorNotice error={version.error} retry={() => void version.refetch()} />
       {version.isPending && <Loading />}
@@ -91,7 +91,7 @@ export function PlaygroundScreen({
           <div className="two-column">
             <Card
               title="Test input"
-              subtitle="Each submission starts a separate run; this is not a multi-turn conversation."
+              subtitle="Start a new conversation with this immutable agent version."
             >
               <form
                 className="form-stack"
@@ -188,8 +188,8 @@ export function PlaygroundScreen({
                 <FlaskConical size={30} />
                 <h3>One message. A bounded tool loop.</h3>
                 <p>
-                  The backend chooses the configured fake or Gemini adapter. The
-                  result identifies which provider actually ran.
+                  The backend chooses the configured fake, Gemini, or OpenAI
+                  adapter. The result identifies which provider actually ran.
                 </p>
               </div>
               <ol className="steps">

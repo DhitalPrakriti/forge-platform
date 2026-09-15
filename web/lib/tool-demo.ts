@@ -7,6 +7,14 @@ export const DEMO_TOOLS: {
   message: string;
 }[] = [
   {
+    name: "inspect_python",
+    label: "Python code inspection",
+    description:
+      "Inspect pasted Python syntax and structure without executing it.",
+    message:
+      '/tool inspect_python {"code":"def divide(a, b):\\n    return a / b"}',
+  },
+  {
     name: "issue_refund",
     label: "Simulated refund",
     description:

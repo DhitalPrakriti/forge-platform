@@ -247,3 +247,7 @@ Missing reviewer configuration returns 503; invalid credential 401; foreign/miss
 - GET run/events/model-calls/tool-calls continues to provide evidence. CHECKPOINT, RETRYING, QUEUED, and cancellation/expiry events expose progress without private checkpoint payloads.
 
 Default runtime build: `forge-runtime-phase6-v1`; checkpoint schema: 2. Local organization/reviewer authentication limits and production guard are unchanged. API database readiness does not attest that a worker or Redis is available; an accepted run can remain queued while infrastructure is stopped.
+
+## Conversation follow-ups
+
+`POST /runs` optionally accepts `parent_run_id` alongside `agent_version_id` and `input`. The parent must be completed, in the same organization, and use the same immutable agent version. The server derives prior user/assistant text into `execution_config.conversation_history` and stores `execution_config.parent_run_id`. Clients cannot supply trusted history. History is limited to 20 messages (10 prior turns) and 60,000 characters; over-limit requests fail explicitly. Previous tool executions are not replayed. Each turn retains its own idempotency key, limits, events, tools, and model-call evidence. No new table/migration is required for this bounded linked-run implementation.

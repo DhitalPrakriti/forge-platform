@@ -140,5 +140,7 @@ def test_gemini_sdk_boundary(monkeypatch, failure, expected):
     assert config.system_instruction == "Goal: Help\n\nBe concise"
     assert config.automatic_function_calling.disable is True
     assert config.tools is None
-    assert generate.call_args.kwargs["contents"] == "Hi"
+    assert generate.call_args.kwargs["contents"] == [
+        types.Content(role="user", parts=[types.Part(text="Hi")])
+    ]
     close.assert_awaited_once()
