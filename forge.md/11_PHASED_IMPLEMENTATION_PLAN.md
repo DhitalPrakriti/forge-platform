@@ -215,3 +215,7 @@ Phase 5 is implemented in `../docs/PHASE_5_IMPLEMENTATION_REPORT.md`: local refu
 ## Phase 6 implementation review
 
 Phase 6 is implemented and documented in `../docs/PHASE_6_IMPLEMENTATION_REPORT.md`: PostgreSQL dispatch/checkpoints, Redis coordination, worker execution, bounded transient model retries, cancellation/timeout/approval expiry, safe local-effect recovery, explicit linked retry, and subprocess-kill tests. Review this slice before Phase 7 (model routing/fallback). No OpenAI adapter, circuit breaker, or monetary enforcement was started.
+
+## Phase 7 provider connection progress
+
+The OpenAI adapter, common API/worker provider selection, secret configuration, and durable OpenAI continuation are implemented in `../docs/PROVIDER_CONNECTION_SESSION.md`. This is a scoped provider-connection slice; automatic fallback, provider health, circuit breaker, price accounting, and monetary enforcement are not complete. Live provider verification awaits local credentials. Do not treat Phase 7 as completed.

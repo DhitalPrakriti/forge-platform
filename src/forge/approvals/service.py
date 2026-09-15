@@ -11,6 +11,7 @@ from forge.durability.store import BUILD, enqueue
 from forge.durability.store import checkpoint as durable_checkpoint
 from forge.durability.store import latest as latest_checkpoint
 from forge.model_router.base import ModelRequest
+from forge.model_router.factory import select_adapter
 from forge.runtime.checkpoints import load_exchanges, load_result
 from forge.runtime.engine import RuntimeEngine
 from forge.runtime.events import record_event, transition_run
@@ -104,6 +105,7 @@ class ApprovalService:
 
     async def resume(self, org, run_id, adapter):
         run = await self.locked_run(org, run_id)
+        adapter = select_adapter(adapter, run.execution_config["requested_model"])
         if RunState(run.status) in TERMINAL:
             return run
         if run.runtime_build_version == BUILD:

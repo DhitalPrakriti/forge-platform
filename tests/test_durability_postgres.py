@@ -426,3 +426,50 @@ def test_incompatible_checkpoint_fails_visibly(client, database_url, redis_url):
     process(database_url, redis_url, run)
     value = get(client, headers, run)
     assert value["status"] == "FAILED" and value["error_code"] == "CHECKPOINT_INCOMPATIBLE", value
+
+
+@pytest.mark.parametrize("model,provider", [("gpt-test", "openai"), ("gemini-test", "google")])
+def test_routed_provider_pinned_between_api_and_worker(
+    client, database_url, redis_url, monkeypatch, model, provider
+):
+    from pydantic import SecretStr
+
+    from forge.model_router.base import ModelResult
+    from forge.model_router.factory import adapter_for
+    from forge.model_router.gemini import GeminiAdapter
+    from forge.model_router.openai import OpenAIAdapter
+
+    settings = client.app.state.settings
+    settings.execution_mode = "queued"
+    settings.model_backend = "routed"
+    settings.openai_api_key = settings.gemini_api_key = SecretStr("test-key")
+    headers, version = setup_version(client, primary_model=model)
+
+    async def generate(self, request):
+        assert request.model == model
+        return ModelResult(
+            text="Real adapter boundary, mocked network",
+            actual_model=model,
+            input_tokens=12,
+            output_tokens=8,
+            finish_reason="STOP",
+        )
+
+    monkeypatch.setattr(
+        OpenAIAdapter if provider == "openai" else GeminiAdapter, "generate", generate
+    )
+    response = client.post(
+        "/api/v1/runs",
+        headers=headers,
+        json={"agent_version_id": version["id"], "input": {"message": "hello"}},
+    )
+    assert response.status_code == 202, response.text
+    run = response.json()
+    assert run["execution_config"]["provider"] == provider
+    process(database_url, redis_url, run, adapter_for(settings))
+    saved = get(client, headers, run)
+    assert saved["status"] == "COMPLETED", saved
+    assert saved["total_cost"] is None  # Unknown provider costs must never become zero.
+    calls = client.get(f"/api/v1/runs/{run['id']}/model-calls", headers=headers).json()
+    assert calls[0]["provider"] == provider
+    assert calls[0]["actual_model"] == model

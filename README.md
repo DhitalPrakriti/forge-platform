@@ -189,3 +189,9 @@ The worker entry point is `uv run python -m forge.durability.worker`. Configure 
 Current Mac processes use PostgreSQL on 55432, Redis on 56379, API on 8000, and web on 3000. Redis was installed with Homebrew and launched on loopback without automatic login startup. In each backend terminal set `FORGE_DATABASE_URL=postgresql+asyncpg://forge@127.0.0.1:55432/forge_local`, `FORGE_REDIS_URL=redis://127.0.0.1:56379/0`, and `FORGE_MODEL_BACKEND=fake`. For the API, also source ignored `.tools/local-reviewer.env` for approval credentials. Default execution mode is queued; explicit inline mode retains legacy development behavior without worker recovery.
 
 An interrupted model request can be retried with uncertain usage/charges; saved responses and committed local effects are reused. External side-effect integrations and cost enforcement remain later work. See [Phase 6 report](docs/PHASE_6_IMPLEMENTATION_REPORT.md) for every file, crash tests, commands, and limitations.
+
+## Connect Gemini and OpenAI (Phase 7 provider slice)
+
+Set `FORGE_MODEL_BACKEND=routed`, `FORGE_GEMINI_API_KEY`, and `FORGE_OPENAI_API_KEY` in both API and worker environments. Each immutable version's model identifier selects its provider (`gemini-...` or an OpenAI text model such as `gpt-...`). Use exact model IDs available to your account. The frontend never receives provider keys. Clone old fake versions to configure real model IDs; existing runs are not changed. Explicit `fake`, `gemini`, and `openai` modes remain available.
+
+OpenAI uses Responses through the existing httpx dependency. Tool requests still pass through FORGE authorization and execution. No automatic fallback or dollar-budget enforcement is implemented yet, and uncalculated costs remain null. See [provider connection and review steps](docs/PROVIDER_CONNECTION_SESSION.md).

@@ -14,6 +14,7 @@ from forge.core.errors import DomainError
 from forge.durability.models import RunControl
 from forge.durability.store import BUILD, SCHEMA, checkpoint, latest
 from forge.model_router.base import ModelRequest, ToolExchange
+from forge.model_router.factory import select_adapter
 from forge.runtime.checkpoints import load_exchanges, load_result, save_exchanges, save_result
 from forge.runtime.engine import RuntimeEngine
 from forge.runtime.events import record_event, transition_run
@@ -123,6 +124,11 @@ class DurableEngine:
             return
         state = dict(saved.runtime_state)
         config = run.execution_config
+        try:
+            self.adapter = select_adapter(self.adapter, config["requested_model"])
+        except DomainError as exc:
+            await self.finish(run, exc.code)
+            return
         if config["provider"] != self.adapter.provider or (
             self.adapter.provider == "google"
             and config["provider_sdk_version"] != package_version("google-genai")

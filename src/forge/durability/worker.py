@@ -12,20 +12,11 @@ from forge.db.session import Database
 from forge.durability.engine import DurableEngine
 from forge.durability.models import RunOutbox
 from forge.durability.queue import RedisQueue
-from forge.model_router.fake import FakeAdapter
-from forge.model_router.gemini import GeminiAdapter
+from forge.model_router.factory import adapter_for
 from forge.runtime.models import Run
 from forge.runtime.state import TERMINAL, RunState
 
 logger = logging.getLogger("forge.worker")
-
-
-def adapter_for(settings):
-    if settings.model_backend == "fake":
-        return FakeAdapter()
-    return GeminiAdapter(
-        settings.gemini_api_key.get_secret_value() if settings.gemini_api_key else None
-    )
 
 
 class Worker:

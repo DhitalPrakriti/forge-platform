@@ -8,18 +8,13 @@ from forge.api.registry import Limit, Scope, require_development_registry
 from forge.db.session import get_session
 from forge.durability.service import DurabilityService
 from forge.model_router.base import ModelAdapter
-from forge.model_router.fake import FakeAdapter
-from forge.model_router.gemini import GeminiAdapter
+from forge.model_router.factory import adapter_for
 from forge.runtime.schemas import EventRead, ModelCallRead, RunCreate, RunRead
 from forge.runtime.service import RunService
 
 
 def get_adapter(request: Request) -> ModelAdapter:
-    settings = request.app.state.settings
-    if settings.model_backend == "fake":
-        return FakeAdapter()
-    key = settings.gemini_api_key.get_secret_value().strip() if settings.gemini_api_key else None
-    return GeminiAdapter(key)
+    return adapter_for(request.app.state.settings)
 
 
 def get_run_service(session: Annotated[AsyncSession, Depends(get_session)]) -> RunService:

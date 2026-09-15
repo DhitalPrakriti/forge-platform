@@ -31,7 +31,11 @@ def unpack(value):
 def save_result(result):
     data = {f.name: getattr(result, f.name) for f in fields(result) if f.name != "provider_content"}
     data["provider_content"] = (
-        pack(result.provider_content.model_dump(mode="python", exclude_none=True))
+        pack(
+            result.provider_content
+            if isinstance(result.provider_content, dict)
+            else result.provider_content.model_dump(mode="python", exclude_none=True)
+        )
         if result.provider_content is not None
         else None
     )
@@ -40,7 +44,9 @@ def save_result(result):
 
 def load_result(data):
     data = dict(data)
-    if data["provider_content"] is not None:
+    if isinstance(data["provider_content"], dict) and "openai_output" in data["provider_content"]:
+        data["provider_content"] = unpack(data["provider_content"])
+    elif data["provider_content"] is not None:
         data["provider_content"] = types.Content.model_validate(unpack(data["provider_content"]))
     return ModelResult(**data)
 

@@ -13,6 +13,7 @@ from forge.core.config import Settings
 from forge.core.errors import DomainError
 from forge.durability.store import BUILD, checkpoint
 from forge.model_router.base import ModelAdapter, ModelRequest
+from forge.model_router.factory import select_adapter
 from forge.runtime.engine import RuntimeEngine
 from forge.runtime.events import transition_run
 from forge.runtime.models import ModelCall, Run, RunEvent
@@ -102,6 +103,7 @@ class RunService:
             raise DomainError(
                 "TOOL_BINDING_INVALID", "Tool bindings do not match the immutable version.", 409
             )
+        adapter = select_adapter(adapter, version.primary_model)
         adapter.validate(version.primary_model)
         timeout = min(settings.model_timeout_seconds, version.runtime_config["max_runtime_seconds"])
         request = ModelRequest(

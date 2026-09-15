@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     model_max_attempts: int = Field(default=3, ge=1, le=5)
     retry_base_seconds: float = Field(default=1, gt=0, le=30)
 
-    model_backend: Literal["gemini", "fake"] = "gemini"
+    model_backend: Literal["gemini", "openai", "routed", "fake"] = "gemini"
+    openai_api_key: SecretStr | None = None
     gemini_api_key: SecretStr | None = None
     model_timeout_seconds: float = Field(default=60, gt=0, le=300)
     model_max_output_tokens: int = Field(default=1024, ge=1, le=8192)

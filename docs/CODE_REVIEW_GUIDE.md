@@ -320,3 +320,7 @@ Review questions: Which commits can happen before an external model call? Why is
 Read `FRONTEND_DESIGN_REFRESH.md`, then `web/components/layout/app-shell.tsx`, `web/components/overview/overview-screen.tsx`, and `web/app/globals.css`. The shell supplies workspace context; the overview queries existing API records and links to operational screens. Shared CSS applies the same visual language to forms, tables, tools, approvals, and run inspectors. `web/tests/e2e/console.spec.ts` checks overview navigation and mobile overflow alongside the existing end-to-end workflows.
 
 Review question: does every displayed metric describe its actual source and scope, and can the user distinguish current capabilities from planned ones?
+
+## Phase 7 provider connection slice
+
+Read `PROVIDER_CONNECTION_SESSION.md` for every changed file, verification, and credential setup. Follow `model_router/factory.py` into `openai.py`, then API run admission, durable engine selection, and the private checkpoint codec. Gemini and OpenAI share FORGE's model/tool contract; HTTP error bodies and private provider continuation must not enter public evidence. Full Phase 7 fallback/health/breaker/accounting remains pending.
