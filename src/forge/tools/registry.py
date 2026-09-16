@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.agents.models import Organization
 from forge.core.errors import DomainError
-from forge.tools.builtins import DEFINITIONS
+from forge.tools.builtins import DEFINITIONS, ToolFailure
+from forge.tools.mcp_registry import validate_binding
 from forge.tools.models import Tool
 from forge.tools.repository import ToolRepository
 from forge.tools.schemas import ToolPatch, ToolRegister
@@ -62,7 +63,12 @@ class ToolRegistry:
             definition = DEFINITIONS.get(tool.name)
             if tool.status != "ACTIVE":
                 raise DomainError("TOOL_INACTIVE", "A bound tool is inactive.", 409)
-            if definition is None or any(
+            if tool.handler_type == "MCP_HTTP_V1":
+                try:
+                    validate_binding(tool)
+                except ToolFailure as exc:
+                    raise DomainError(exc.code, "MCP tool revision is unavailable.", 409) from None
+            elif definition is None or any(
                 getattr(tool, key) != val for key, val in definition.metadata().items()
             ):
                 raise DomainError(

@@ -262,9 +262,9 @@ export function VersionForm({
           </Button>
         </div>
         <p className="inset-note">
-          These demo tools use synthetic customers. Creating a ticket writes
-          only to the local database. Selecting a tool is permission, not a
-          promise that a real model will call it.
+          Demo tools use synthetic customers and local data. MCP tools contact
+          their configured server and require approval for each call. Selecting
+          a tool permits the model to request it; it does not force a call.
         </p>
       </Card>
       <Card
@@ -275,19 +275,21 @@ export function VersionForm({
           error={policies.error}
           retry={() => void policies.refetch()}
         />
-        {policies.data?.map((policy) => (
-          <label className="tool-choice" key={policy.id}>
-            <input
-              type="checkbox"
-              value={policy.id}
-              {...form.register("policy_version_ids")}
-            />
-            <span>
-              {policy.name} v{policy.version}
-              <span className="mono break-word">{policy.id}</span>
-            </span>
-          </label>
-        ))}
+        {policies.data
+          ?.filter((policy) => policy.name === "demo-refund")
+          .map((policy) => (
+            <label className="tool-choice" key={policy.id}>
+              <input
+                type="checkbox"
+                value={policy.id}
+                {...form.register("policy_version_ids")}
+              />
+              <span>
+                {policy.name} v{policy.version}
+                <span className="mono break-word">{policy.id}</span>
+              </span>
+            </label>
+          ))}
         {!policies.data?.length && (
           <p>Register the refund policy in Tool Hub, then refresh.</p>
         )}

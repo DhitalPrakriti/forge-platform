@@ -1,4 +1,5 @@
 "use client";
+import { McpTools } from "./mcp-tools";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Wrench, Plus, ShieldCheck } from "lucide-react";
@@ -57,10 +58,15 @@ export function ToolsScreen() {
       <div className="notice">
         <ShieldCheck size={18} />
         <span>
-          Local Python inspection and demo tools. No external helpdesk, customer
-          system, refund, or message is contacted.
+          Built-in tools run locally. Connected MCP tools contact an external
+          server and require your approval before each call.
         </span>
       </div>
+      <McpTools
+        key={workspace.id}
+        org={workspace.id}
+        tools={tools.data || []}
+      />
       <ErrorNotice error={tools.error} retry={() => void tools.refetch()} />
       <ErrorNotice error={register.error || patch.error} />
       {tools.isPending && <Loading />}

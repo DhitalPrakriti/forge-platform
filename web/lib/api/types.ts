@@ -106,7 +106,7 @@ export type ToolName =
 export interface Tool {
   id: string;
   organization_id: string;
-  name: ToolName;
+  name: string;
   version: string;
   description: string;
   input_schema: Record<string, unknown>;
@@ -156,4 +156,14 @@ export interface Approval {
   expires_at: string;
   reviewed_by: string | null;
   decision_reason: string | null;
+}
+
+export interface MCPDiscoveredTool {
+  fingerprint: string;
+  tool: {
+    name: string;
+    description?: string;
+    inputSchema: Record<string, unknown>;
+    outputSchema?: Record<string, unknown>;
+  };
 }

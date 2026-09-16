@@ -328,3 +328,7 @@ Read `PROVIDER_CONNECTION_SESSION.md` for every changed file, verification, and 
 ## Pasted-code assistant and conversations
 
 Read `CODE_REVIEW_CONVERSATION_SESSION.md` for the complete file map. Follow `FollowUp` → `RunCreate.parent_run_id` → organization-scoped parent lookup → persisted conversation history → `ModelRequest.history` → provider-native user/assistant messages. Review the `inspect_python` tool through the existing Tool Hub, and verify no pasted code executes. Markdown is rendered only for display; saved evidence is unchanged.
+
+## MCP server tools
+
+Read `MCP_SESSION.md`, then `tools/mcp_client.py` → `mcp_registry.py` → tool model/migration 0007 → `tools/hub.py` → approval/retry services. Follow the browser from `components/tools/mcp-tools.tsx` through the thin API and exact-version selection. `examples/mcp_code_server.py` demonstrates a real separately running server. Tests cover both live local MCP HTTP and a worker interruption after the durable external claim. Explain why remote metadata is not authorization and why unknown external effects are never automatically replayed.

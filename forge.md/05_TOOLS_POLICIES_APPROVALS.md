@@ -129,3 +129,11 @@ Private checkpoints retain exact provider content, including opaque signatures n
 New queued runs resume automatically after an authenticated approval decision commits its schema-2 checkpoint and outbox intent. The worker checks the same exact policy/permission/payload/expiry before execution; a notification or raw resume request is never authorization. Pending approvals have durable expiry wake-ups. Old Phase 5 runs retain their explicit resume path.
 
 For installed local demo handlers, PostgreSQL effect/result/checkpoint/outbox atomicity permits recovery of an interrupted RUNNING call with its original key: either its transaction rolled back, or its completed result/cursor was saved. This exception is worker-only under the PostgreSQL execution fence and requires the installed LOCAL_DEMO_V1 metadata and idempotency support. It does not authorize automatic repetition of unknown external effects. Explicit retry of a failed run with an already successful/unknown side effect is blocked.
+
+## User-approved MCP extension (2026-09-16)
+
+The local console now supports operator-configured Streamable HTTP MCP servers: discover, review fingerprints, register selected immutable revisions, and bind exact IDs to new agent versions. This extends the earlier installed-local-only restriction. Credentials remain server-side; the browser selects configured server labels. No model-generated handler or arbitrary browser URL is executed.
+
+All MCP tool calls require an authenticated, exact-payload approval under the internal `mcp-review` policy. Remote annotations never grant permission. Endpoint/definition drift fails closed. External call claims commit before dispatch; unknown outcomes and retries after authorized external attempts require reconciliation instead of automatic repetition. The existing local PostgreSQL atomic-recovery exception does not apply to MCP.
+
+Initial compatibility: bearer/no-auth Streamable HTTP, bounded object schemas without references/regex, text/structured JSON output. OAuth, stdio, production tenant credential management, price enforcement and irreversible downstream exactly-once effects are not claimed. See `docs/MCP_SESSION.md` for setup, limitations and the code-review walkthrough.

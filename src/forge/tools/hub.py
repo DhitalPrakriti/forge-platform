@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from time import monotonic
 from uuid import UUID, uuid4
 
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,7 @@ from forge.approvals.policy import refund_decision, resolve_policy
 from forge.durability.models import RunControl
 from forge.runtime.events import record_event
 from forge.runtime.models import Run
+from forge.tools import mcp_client, mcp_registry
 from forge.tools.builtins import DEFINITIONS, ToolFailure, execute_builtin
 from forge.tools.models import Tool, ToolCall
 from forge.tools.policy import decision
@@ -59,7 +61,11 @@ class ToolHub:
         definition = DEFINITIONS.get(name)
         failure = None
         normalized = arguments
-        if definition is None:
+        is_mcp = tool is not None and tool.handler_type == "MCP_HTTP_V1"
+        if is_mcp:
+            if not Draft202012Validator(tool.input_schema).is_valid(arguments):
+                failure = "TOOL_VALIDATION_FAILED"
+        elif definition is None:
             failure = "TOOL_NOT_ALLOWED"
         else:
             try:
@@ -152,7 +158,48 @@ class ToolHub:
                             )
                         ):
                             raise ToolFailure("RUN_CANCELLED")
-                        if name == "issue_refund":
+                        if is_mcp:
+                            if fresh is None:
+                                raise ToolFailure("POLICY_DENIED")
+                            mcp_registry.validate_binding(fresh)
+                            policy = await mcp_registry.policy(self.session, run.organization_id)
+                            approval = await self.session.scalar(
+                                select(Approval).where(Approval.tool_call_id == call.id)
+                            )
+                            if approval is None:
+                                approval = Approval(
+                                    organization_id=run.organization_id,
+                                    run_id=run.id,
+                                    tool_call_id=call.id,
+                                    policy_id=policy.id,
+                                    summary=(
+                                        f"External MCP call: {fresh.connection_config['server']} / "
+                                        f"{fresh.connection_config['remote']['name']}"
+                                    ),
+                                    requested_payload=normalized,
+                                    request_hash=request_hash,
+                                    expires_at=min(
+                                        datetime.now(UTC) + timedelta(hours=24),
+                                        run.started_at
+                                        + timedelta(
+                                            seconds=run.execution_config["max_runtime_seconds"]
+                                        ),
+                                    ),
+                                )
+                                self.session.add(approval)
+                                call.status = "WAITING_FOR_APPROVAL"
+                                call.decision = "REQUIRE_APPROVAL"
+                                await self.session.flush()
+                                return call
+                            if (
+                                approval.status != "APPROVED"
+                                or approval.expires_at <= datetime.now(UTC)
+                                or approval.request_hash != request_hash
+                                or approval.requested_payload != normalized
+                                or approval.policy_id != policy.id
+                            ):
+                                raise ToolFailure("APPROVAL_INVALID")
+                        elif name == "issue_refund":
                             if (
                                 fresh is None
                                 or fresh.status != "ACTIVE"
@@ -211,17 +258,26 @@ class ToolHub:
                         elif fresh is None or decision(fresh, definition) != "ALLOW":
                             raise ToolFailure("POLICY_DENIED")
                         authorized = True
-                        result = await execute_builtin(
-                            name,
-                            normalized,
-                            self.session,
-                            run.organization_id,
-                            call.id,
-                            call.idempotency_key,
-                        )
-                        validated = definition.output_model.model_validate(result).model_dump(
-                            mode="json"
-                        )
+                        if not is_mcp:
+                            result = await execute_builtin(
+                                name,
+                                normalized,
+                                self.session,
+                                run.organization_id,
+                                call.id,
+                                call.idempotency_key,
+                            )
+                            validated = definition.output_model.model_validate(result).model_dump(
+                                mode="json"
+                            )
+                if is_mcp:
+                    # Claim durably before crossing the external effect boundary.
+                    # Recovery sees RUNNING and refuses to repeat an unknown outcome.
+                    call.status = "RUNNING"
+                    call.decision = "ALLOW"
+                    await self.session.commit()
+                    async with asyncio.timeout(max(0, deadline - monotonic())):
+                        validated = await mcp_client.execute(fresh.connection_config, normalized)
                 call.result = validated
             except ValidationError:
                 failure = "TOOL_OUTPUT_INVALID"

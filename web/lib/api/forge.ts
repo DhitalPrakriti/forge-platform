@@ -13,6 +13,7 @@ import type {
   Tool,
   ToolCall,
   ToolName,
+  MCPDiscoveredTool,
 } from "./types";
 const json = (body: unknown): RequestInit => ({
   method: "POST",
@@ -20,6 +21,19 @@ const json = (body: unknown): RequestInit => ({
 });
 const id = encodeURIComponent;
 export const api = {
+  mcpServers: (org: string) => request<{ name: string }[]>("/mcp/servers", org),
+  discoverMcp: (org: string, server: string) =>
+    request<MCPDiscoveredTool[]>(`/mcp/servers/${id(server)}/tools`, org),
+  registerMcp: (org: string, server: string, tool: MCPDiscoveredTool) =>
+    request<Tool>(
+      "/mcp/tools",
+      org,
+      json({
+        server,
+        remote_name: tool.tool.name,
+        fingerprint: tool.fingerprint,
+      }),
+    ),
   cancelRun: (org: string, runId: string) =>
     request<Run>(`/runs/${id(runId)}/cancel`, org, { method: "POST" }),
   retryRun: (org: string, runId: string, key: string) =>

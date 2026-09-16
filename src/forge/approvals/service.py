@@ -166,7 +166,12 @@ class ApprovalService:
         tools = await ToolRegistry(self.session).resolve(org, version.tool_version_ids)
         if set(await ToolRepository(self.session).bindings(version.id)) != {t.id for t in tools}:
             raise DomainError("TOOL_BINDING_INVALID", "Pinned tool bindings differ.", 409)
-        await resolve_policy(self.session, org, version.policy_version_ids, required=True)
+        await resolve_policy(
+            self.session,
+            org,
+            version.policy_version_ids,
+            required=any(t.name == "issue_refund" for t in tools),
+        )
         if adapter.provider != run.execution_config["provider"]:
             raise DomainError(
                 "CHECKPOINT_INCOMPATIBLE", "Resume requires the original provider.", 409

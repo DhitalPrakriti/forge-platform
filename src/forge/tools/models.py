@@ -37,6 +37,7 @@ class Tool(Base):
     retry_safe: Mapped[bool]
     idempotency_supported: Mapped[bool]
     handler_type: Mapped[str] = mapped_column(String(100))
+    connection_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE", server_default="ACTIVE")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

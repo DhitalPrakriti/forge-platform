@@ -251,3 +251,13 @@ Default runtime build: `forge-runtime-phase6-v1`; checkpoint schema: 2. Local or
 ## Conversation follow-ups
 
 `POST /runs` optionally accepts `parent_run_id` alongside `agent_version_id` and `input`. The parent must be completed, in the same organization, and use the same immutable agent version. The server derives prior user/assistant text into `execution_config.conversation_history` and stores `execution_config.parent_run_id`. Clients cannot supply trusted history. History is limited to 20 messages (10 prior turns) and 60,000 characters; over-limit requests fail explicitly. Previous tool executions are not replayed. Each turn retains its own idempotency key, limits, events, tools, and model-call evidence. No new table/migration is required for this bounded linked-run implementation.
+
+## MCP local-console extension (2026-09-16)
+
+All routes below are under `/api/v1`, require `X-Organization-ID`, and retain the development-only guard:
+
+- `GET /mcp/servers`: configured server labels only; never credentials or endpoint URLs.
+- `GET /mcp/servers/{server}/tools`: discover bounded remote definitions and their review fingerprints.
+- `POST /mcp/tools`: `{server, remote_name, fingerprint}`; rediscover and compare before registering an immutable namespaced revision. Returns ToolRead (201, including idempotent re-registration of the same revision). Changed review fingerprints return 409.
+
+Existing `PATCH /tools/{id}`, version tool permissions, tool-call evidence and approve/deny APIs apply. MCP approval policy is installed internally and not selected as a refund policy. No browser-provided URL, credential upload, OAuth callback, or stdio command endpoint exists in this slice.

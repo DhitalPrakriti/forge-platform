@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from forge.core.errors import DomainError
@@ -46,7 +46,10 @@ class DurabilityService:
             .where(
                 ToolCall.run_id == run.id,
                 Tool.risk_level.in_(["MEDIUM", "HIGH"]),
-                ToolCall.status.in_(["RUNNING", "COMPLETED"]),
+                or_(
+                    ToolCall.status.in_(["RUNNING", "COMPLETED"]),
+                    and_(Tool.handler_type == "MCP_HTTP_V1", ToolCall.decision == "ALLOW"),
+                ),
             )
             .limit(1)
         )

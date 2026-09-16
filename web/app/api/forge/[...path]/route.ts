@@ -5,6 +5,8 @@ export const runtime = "nodejs";
 const uuid = "[0-9a-fA-F-]{36}";
 const routes: Record<string, RegExp[]> = {
   GET: [
+    /^mcp\/servers$/,
+    /^mcp\/servers\/[a-z][a-z0-9_-]{0,31}\/tools$/,
     /^policies$/,
     /^approvals$/,
     new RegExp(`^approvals/${uuid}$`),
@@ -17,6 +19,7 @@ const routes: Record<string, RegExp[]> = {
     new RegExp(`^runs/${uuid}(/events|/model-calls|/tool-calls)?$`),
   ],
   POST: [
+    /^mcp\/tools$/,
     /^policies$/,
     new RegExp(`^approvals/${uuid}/(approve|deny)$`),
     new RegExp(`^runs/${uuid}/resume$`),

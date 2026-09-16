@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from forge.api.registry import Limit, Offset, Scope, require_development_registry
 from forge.db.session import get_session
 from forge.runtime.service import RunService
+from forge.tools.mcp_registry import MCPRegister
 from forge.tools.registry import ToolRegistry
 from forge.tools.repository import ToolRepository
 from forge.tools.schemas import ToolCallRead, ToolPatch, ToolRead, ToolRegister
@@ -43,3 +44,27 @@ async def tool_calls(
 ):
     await RunService(session).get(scope, run_id)
     return await ToolRepository(session).calls(run_id, limit, offset)
+
+
+@router.get("/mcp/servers")
+async def mcp_servers(scope: Scope, session: Session):
+    from forge.tools.mcp_client import servers
+
+    await ToolRegistry(session).organization(scope)
+    return [{"name": name} for name in servers()]
+
+
+@router.get("/mcp/servers/{server}/tools")
+async def discover_mcp(server: str, scope: Scope, session: Session):
+    from forge.tools.mcp_registry import catalog
+
+    await ToolRegistry(session).organization(scope)
+    return await catalog(server)
+
+
+@router.post("/mcp/tools", response_model=ToolRead, status_code=201)
+async def register_mcp(payload: MCPRegister, scope: Scope, session: Session):
+    from forge.tools.mcp_registry import register
+
+    await ToolRegistry(session).organization(scope)
+    return await register(session, scope, payload)

@@ -48,7 +48,7 @@ export function ApprovalPanel({
   if (!approvals.data?.length && !approvals.error) return null;
   return (
     <Card
-      title="Refund approvals"
+      title="Tool approvals"
       subtitle={
         automatic
           ? "Review the exact request. Approval schedules the worker to continue automatically."
@@ -91,10 +91,7 @@ export function ApprovalPanel({
           <Badge>{a.status}</Badge>
           <p>Expires: {new Date(a.expires_at).toLocaleString()}</p>
           <p className="mono break-word">Request hash: {a.request_hash}</p>
-          <JsonDetails
-            label="Exact refund request"
-            value={a.requested_payload}
-          />
+          <JsonDetails label="Exact tool request" value={a.requested_payload} />
           {a.reviewed_by && (
             <p>
               Reviewer: {a.reviewed_by} · {a.decision_reason}
@@ -111,7 +108,9 @@ export function ApprovalPanel({
                       disabled={!token || !reason.trim() || action.isPending}
                       onClick={() => setConfirm({ id: a.id, verdict })}
                     >
-                      {verdict === "approve" ? "Approve refund" : "Deny refund"}
+                      {verdict === "approve"
+                        ? "Approve tool call"
+                        : "Deny tool call"}
                     </Button>
                   ))}
                 </>
@@ -135,8 +134,8 @@ export function ApprovalPanel({
         }}
         title={
           confirm?.verdict === "approve"
-            ? "Approve this exact refund?"
-            : "Deny this refund?"
+            ? "Approve this exact tool call?"
+            : "Deny this tool call?"
         }
         description={
           automatic

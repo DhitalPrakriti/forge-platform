@@ -410,7 +410,7 @@ test("refund policy, human approval, and automatic worker continuation", async (
   await page.getByRole("button", { name: "Run agent", exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/[0-9a-f-]+$/);
   await expect(
-    page.getByRole("heading", { name: "Refund approvals" }),
+    page.getByRole("heading", { name: "Tool approvals" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
@@ -422,7 +422,7 @@ test("refund policy, human approval, and automatic worker continuation", async (
     .getByLabel("Decision reason")
     .fill("Reviewed exact demo amount and customer.");
   await page
-    .getByRole("button", { name: "Approve refund", exact: true })
+    .getByRole("button", { name: "Approve tool call", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Save decision", exact: true })
@@ -551,4 +551,75 @@ test("follow-up conversation keeps earlier messages and run links", async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("discover MCP tool, bind a version, approve and inspect a real tool result", async ({
+  page,
+}, testInfo) => {
+  const token = process.env.FORGE_APPROVAL_REVIEWER_TOKEN;
+  const server = process.env.FORGE_TEST_MCP_SERVER;
+  test.skip(
+    !token || !server,
+    "Configure example MCP server and local reviewer.",
+  );
+  await workspace(page, "MCP review");
+  const initial = await version(page);
+  await page.goto("/tools");
+  await page.getByLabel("MCP server").selectOption(server!);
+  await page
+    .getByRole("button", { name: "Discover tools", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Register inspect_code", exact: true })
+    .click();
+  const status = page.getByRole("status");
+  await expect(status).toContainText("Clone your agent version");
+  const alias = (await status.innerText()).match(
+    /Registered (mcp_[a-zA-Z0-9_]+)\./,
+  )![1];
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("mcp-tools-mobile.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.goto(initial);
+  await page.getByRole("link", { name: "Clone version" }).click();
+  await page.getByLabel("Version label").fill("v2-mcp");
+  await page.getByRole("checkbox", { name: new RegExp(alias) }).check();
+  await page.getByRole("button", { name: "Save immutable version" }).click();
+  await page.getByRole("link", { name: "Test version" }).click();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill(
+      `/tool ${alias} ${JSON.stringify({ code: "def average(xs):\n    return sum(xs) / len(xs)" })}`,
+    );
+  await page.getByRole("button", { name: "Run agent", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "External MCP call: code / inspect_code",
+    }),
+  ).toBeVisible();
+  await page.getByLabel("Local reviewer credential").fill(token!);
+  await page
+    .getByLabel("Decision reason")
+    .fill("Allow the local server to inspect this pasted code.");
+  await page
+    .getByRole("button", { name: "Approve tool call", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Save decision", exact: true })
+    .click();
+  await expect(page.locator(".metadata-strip")).toContainText("COMPLETED");
+  await expect(page.locator(".tool-call")).toContainText("COMPLETED");
+  await expect(page.getByText(/division_lines/).first()).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("mcp-run-completed.png"),
+    fullPage: true,
+  });
 });
