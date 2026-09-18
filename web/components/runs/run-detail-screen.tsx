@@ -241,7 +241,9 @@ export function RunDetailScreen({ runId }: { runId: string }) {
               <div className="metric-value cost-value">
                 {cost(value.total_cost)}
               </div>
-              <p className="muted">Unknown cost is not counted as zero</p>
+              <p className="muted">
+                Standard paid text estimate; unknown cost is not zero
+              </p>
             </Card>
             <Card>
               <div className="metric-label">Version</div>
@@ -255,6 +257,21 @@ export function RunDetailScreen({ runId }: { runId: string }) {
               <p className="muted">Exact configuration used</p>
             </Card>
           </div>
+          {value.execution_config.cost_summary?.unknown_calls ? (
+            <p className="inset-note">
+              Known subtotal:{" "}
+              {cost(value.execution_config.cost_summary.known_cost_usd)} ·{" "}
+              {value.execution_config.cost_summary.unknown_calls} calls with
+              unknown cost. Total remains unknown.
+            </p>
+          ) : null}
+          {value.execution_config.active_model && (
+            <p className="inset-note">
+              Fallback selected: {value.execution_config.active_model} (
+              {value.execution_config.active_provider}). Original model:{" "}
+              {value.execution_config.requested_model}.
+            </p>
+          )}
           <div className="two-column">
             <Card title="Input" subtitle="The message sent for this run.">
               <p className="preserve output-text">{value.input.message}</p>
@@ -388,7 +405,17 @@ export function RunDetailScreen({ runId }: { runId: string }) {
                     </div>
                     <div>
                       <dt>Estimated cost</dt>
-                      <dd>{cost(call.estimated_cost)}</dd>
+                      <dd>
+                        {cost(call.estimated_cost)}{" "}
+                        {call.cost_details?.status && (
+                          <span className="muted">
+                            ·{" "}
+                            {call.cost_details.status
+                              .toLowerCase()
+                              .replaceAll("_", " ")}
+                          </span>
+                        )}
+                      </dd>
                     </div>
                     {call.error_type && (
                       <div>

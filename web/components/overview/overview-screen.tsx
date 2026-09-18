@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Wrench,
 } from "lucide-react";
+import { ModelHealthPanel } from "../models/model-health";
 import { api } from "@/lib/api/forge";
 import { useWorkspace } from "../layout/providers";
 import { WorkspaceScreen } from "../workspace/workspace-screen";
@@ -107,6 +108,7 @@ export function OverviewScreen() {
           <p className="muted">Provider configured on the backend</p>
         </Card>
       </div>
+      <ModelHealthPanel org={workspace.id} />
       <div className="operation-links">
         <Link href="/agents" className="operation-link">
           <Bot size={20} />

@@ -68,6 +68,7 @@ class ModelCallRead(Schema):
     output_tokens: int | None
     usage: dict | None
     latency_ms: int | None
+    cost_details: dict | None = None
     estimated_cost: Decimal | None
     error_type: str | None
     created_at: datetime

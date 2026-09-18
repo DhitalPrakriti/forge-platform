@@ -219,3 +219,7 @@ Phase 6 is implemented and documented in `../docs/PHASE_6_IMPLEMENTATION_REPORT.
 ## Phase 7 provider connection progress
 
 The OpenAI adapter, common API/worker provider selection, secret configuration, and durable OpenAI continuation are implemented in `../docs/PROVIDER_CONNECTION_SESSION.md`. This is a scoped provider-connection slice; automatic fallback, provider health, circuit breaker, price accounting, and monetary enforcement are not complete. Live provider verification awaits local credentials. Do not treat Phase 7 as completed.
+
+### Phase 7 implementation status — 2026-09-18
+
+Implemented the bounded model-router scope: OpenAI/Gemini selection, ordered queued fallback before the first successful model response, persisted passive model health and circuit breaker, versioned standard paid text estimates, and an observed-cost stop. See `docs/PHASE_7_IMPLEMENTATION_REPORT.md` for exact boundaries and evidence. Cross-provider continuation after tool requests, hard billing caps, multimodal/vendor-tool billing, and account-wide spend limits are not implemented. Phase 8 has not started.

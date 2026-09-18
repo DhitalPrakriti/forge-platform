@@ -7,6 +7,7 @@ from time import monotonic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.approvals.models import RunCheckpoint
+from forge.model_router import health, pricing
 from forge.model_router.base import (
     ModelAdapter,
     ModelFailure,
@@ -35,6 +36,27 @@ class RuntimeEngine:
     ) -> tuple[ModelResult | None, str | None]:
         started = monotonic()
         result, failure = None, None
+        if pricing.budget_exceeded(run):
+            call.status, call.error_type = "SKIPPED", "BUDGET_EXCEEDED"
+            call.completed_at = datetime.now(UTC)
+            await pricing.record(self.session, run, call)
+            return None, "BUDGET_EXCEEDED"
+        generation = None
+        if adapter.provider != "fake" and run.execution_config.get("routing_revision"):
+            generation = await health.acquire(
+                self.session,
+                run.organization_id,
+                adapter.provider,
+                request.model,
+                request.timeout_seconds,
+            )
+            if generation is None:
+                call.status, call.error_type = "SKIPPED", "MODEL_CIRCUIT_OPEN"
+                call.completed_at = datetime.now(UTC)
+                await pricing.record(self.session, run, call)
+                return None, "MODEL_CIRCUIT_OPEN"
+            call.cost_details = {"circuit_generation": generation}
+            await self.session.commit()
         try:
             async with asyncio.timeout(request.timeout_seconds):
                 result = await adapter.generate(request)
@@ -55,6 +77,16 @@ class RuntimeEngine:
             call.error_type = failure
         call.latency_ms = max(0, int((monotonic() - started) * 1000))
         call.completed_at = datetime.now(UTC)
+        if generation is not None:
+            await health.observe(
+                self.session,
+                run.organization_id,
+                adapter.provider,
+                request.model,
+                generation,
+                failure,
+            )
+        await pricing.record(self.session, run, call)
         return result, failure
 
     async def execute(
@@ -104,6 +136,8 @@ class RuntimeEngine:
                 )
                 if failure:
                     return failure
+            if pricing.budget_exceeded(run):
+                return "BUDGET_EXCEEDED"
             if result.finish_reason != "STOP":
                 return "MODEL_RESPONSE_INCOMPLETE"
             if not result.tool_requests:

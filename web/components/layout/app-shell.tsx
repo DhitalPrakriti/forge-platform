@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
         <footer className="footer">
           <span>FORGE / Agent operations</span>
-          <span>Local console · Phase 6 backend</span>
+          <span>Local console · Phase 7 backend</span>
         </footer>
       </div>
     </div>

@@ -79,6 +79,7 @@ class ModelCall(Base):
     output_tokens: Mapped[int | None] = mapped_column(nullable=True)
     usage: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(nullable=True)
+    cost_details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     estimated_cost: Mapped[Decimal | None] = mapped_column(Numeric(18, 8), nullable=True)
     error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

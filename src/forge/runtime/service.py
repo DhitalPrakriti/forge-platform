@@ -14,6 +14,7 @@ from forge.core.errors import DomainError
 from forge.durability.store import BUILD, checkpoint
 from forge.model_router.base import ModelAdapter, ModelRequest
 from forge.model_router.factory import select_adapter
+from forge.model_router.pricing import snapshot
 from forge.runtime.engine import RuntimeEngine
 from forge.runtime.events import transition_run
 from forge.runtime.models import ModelCall, Run, RunEvent
@@ -85,10 +86,12 @@ class RunService:
             raise DomainError(
                 "VERSION_NOT_RUNNABLE", "Use an active agent's DRAFT or STAGING version.", 409
             )
-        if version.fallback_models or version.runtime_template_revision != "standard-agent-v1":
+        if version.runtime_template_revision != "standard-agent-v1" or (
+            version.fallback_models and settings.execution_mode != "queued"
+        ):
             raise DomainError(
                 "RUNTIME_CONFIGURATION_UNSUPPORTED",
-                "Phase 5 supports standard-agent-v1 without fallback.",
+                "Fallback requires queued execution of standard-agent-v1.",
                 409,
             )
         tools = await ToolRegistry(self.session).resolve(organization_id, version.tool_version_ids)
@@ -121,8 +124,26 @@ class RunService:
                 raise DomainError(
                     "CONVERSATION_LIMIT", "Start a new conversation; context limit reached.", 422
                 )
+        candidates = []
+        for model in [version.primary_model, *version.fallback_models]:
+            selected = select_adapter(adapter, model)
+            selected.validate(model)
+            candidates.append(
+                {
+                    "model": model,
+                    "provider": selected.provider,
+                    "sdk_version": package_version("google-genai")
+                    if selected.provider == "google"
+                    else None,
+                }
+            )
         adapter = select_adapter(adapter, version.primary_model)
-        adapter.validate(version.primary_model)
+        try:
+            prices = snapshot(settings.model_prices)
+        except (ValueError, TypeError):
+            raise DomainError(
+                "PRICING_CONFIGURATION_INVALID", "Check server model prices.", 503
+            ) from None
         timeout = min(settings.model_timeout_seconds, version.runtime_config["max_runtime_seconds"])
         request = ModelRequest(
             history=history,
@@ -155,6 +176,10 @@ class RunService:
             idempotency_key=key,
             request_hash=request_hash,
             execution_config={
+                "routing_revision": 1,
+                "model_candidates": candidates,
+                "pricing_snapshot": prices,
+                "max_cost_per_run_usd": str(version.budget_config["max_cost_per_run_usd"]),
                 "conversation_history": history,
                 "parent_run_id": str(payload.parent_run_id) if payload.parent_run_id else None,
                 "execution_mode": settings.execution_mode,
@@ -171,7 +196,7 @@ class RunService:
                 "timeout_seconds": timeout,
                 "max_output_tokens": request.max_output_tokens,
                 "runtime_template_revision": version.runtime_template_revision,
-                "budget_enforcement": "DEFERRED_TO_PHASE_7",
+                "budget_enforcement": "OBSERVED_COST_STOP_NOT_BILLING_CAP",
                 "provider_sdk_version": package_version("google-genai")
                 if adapter.provider == "google"
                 else None,

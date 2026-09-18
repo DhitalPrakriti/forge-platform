@@ -129,3 +129,7 @@ Useful for demonstrating retries, fallback, and resilience.
 ## Phase 6 reliability evidence
 
 Queued execution now has durable attempt caps/backoff, cooperative cancellation, wall-clock timeout including waits, pending-approval expiry, Redis leases supplemented by PostgreSQL session fencing, and checkpoint/outbox recovery. Tests kill subprocess workers at model and local-tool transaction boundaries and verify one local effect after restart. Redis publication failure and lost notifications preserve pending PostgreSQL work. Unknown model attempts are recorded explicitly; transient model replay can incur additional charges. Production IAM, external effect reconciliation adapters, full traces/metrics, model cost enforcement, and circuit breakers remain their later scoped phases.
+
+### Phase 7 addition — 2026-09-18
+
+Model health and circuit state now persist in PostgreSQL and are exposed through the organization-scoped development endpoint `GET /api/v1/models/health`. Model-call cost evidence and immutable per-run prices support standard paid text estimates. Failed/unknown attempts are never silently priced as zero. This does not add production IAM, OpenTelemetry, account-wide billing controls, or a hard spend guarantee. See the Phase 7 implementation report.

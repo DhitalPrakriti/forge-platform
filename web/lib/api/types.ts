@@ -60,6 +60,13 @@ export interface Run {
     provider?: string;
     requested_model?: string;
     budget_enforcement?: string;
+    active_model?: string;
+    active_provider?: string;
+    cost_summary?: {
+      known_cost_usd: string;
+      unknown_calls: number;
+      status: string;
+    };
     [key: string]: unknown;
   };
   started_at: string | null;
@@ -87,6 +94,7 @@ export interface ModelCall {
   usage: Record<string, unknown> | null;
   latency_ms: number | null;
   estimated_cost: string | null;
+  cost_details?: { status?: string; [key: string]: unknown } | null;
   error_type: string | null;
   created_at: string;
   completed_at: string | null;
@@ -166,4 +174,15 @@ export interface MCPDiscoveredTool {
     inputSchema: Record<string, unknown>;
     outputSchema?: Record<string, unknown>;
   };
+}
+
+export interface ModelHealth {
+  provider: string;
+  model: string;
+  state: string;
+  failures: number;
+  open_until: string | null;
+  probe_until: string | null;
+  last_observed_at: string | null;
+  last_error: string | null;
 }

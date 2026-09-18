@@ -13,6 +13,7 @@ from forge.approvals.policy import resolve_policy
 from forge.core.errors import DomainError
 from forge.durability.models import RunControl
 from forge.durability.store import BUILD, SCHEMA, checkpoint, latest
+from forge.model_router import health, pricing
 from forge.model_router.base import ModelRequest, ToolExchange
 from forge.model_router.factory import select_adapter
 from forge.runtime.checkpoints import load_exchanges, load_result, save_exchanges, save_result
@@ -33,6 +34,7 @@ TRANSIENT = {"MODEL_TIMEOUT", "MODEL_PROVIDER_UNAVAILABLE", "MODEL_OUTCOME_UNKNO
 class DurableEngine:
     def __init__(self, session, adapter):
         self.session, self.adapter = session, adapter
+        self.router = adapter
 
     async def save(self, run, state, **kwargs):
         await checkpoint(self.session, run, state, **kwargs)
@@ -92,6 +94,38 @@ class DurableEngine:
         return False
 
     async def retry(self, run, state, code):
+        index = state.get("model_index", 0)
+        candidates = run.execution_config.get("model_candidates", [])
+        if (
+            code in TRANSIENT | {"MODEL_CIRCUIT_OPEN"}
+            and (
+                state["attempt"] >= run.execution_config["model_max_attempts"]
+                or code == "MODEL_CIRCUIT_OPEN"
+            )
+            and state["step"] == 1
+            and not state["exchanges"]
+            and index + 1 < len(candidates)
+        ):
+            target = candidates[index + 1]
+            record_event(
+                self.session,
+                run,
+                "MODEL_FALLBACK",
+                {
+                    "from_model": candidates[index]["model"],
+                    "to_model": target["model"],
+                    "reason": code,
+                },
+            )
+            run.execution_config = {
+                **run.execution_config,
+                "active_model": target["model"],
+                "active_provider": target["provider"],
+            }
+            state = {**state, "model_index": index + 1, "model_call_id": None, "attempt": 0}
+            transition_run(self.session, run, RunState.RETRYING, {"reason": "MODEL_FALLBACK"})
+            await self.save(run, state)
+            return
         if code not in TRANSIENT or state["attempt"] >= run.execution_config["model_max_attempts"]:
             await self.finish(run, code)
             return
@@ -124,14 +158,29 @@ class DurableEngine:
             return
         state = dict(saved.runtime_state)
         config = run.execution_config
+        candidates = config.get(
+            "model_candidates",
+            [
+                {
+                    "model": config["requested_model"],
+                    "provider": config["provider"],
+                    "sdk_version": config.get("provider_sdk_version"),
+                }
+            ],
+        )
+        index = state.get("model_index", 0)
+        if type(index) is not int or not 0 <= index < len(candidates):
+            await self.finish(run, "CHECKPOINT_INCOMPATIBLE")
+            return
+        candidate = candidates[index]
         try:
-            self.adapter = select_adapter(self.adapter, config["requested_model"])
+            self.adapter = select_adapter(self.router, candidate["model"])
         except DomainError as exc:
             await self.finish(run, exc.code)
             return
-        if config["provider"] != self.adapter.provider or (
+        if candidate["provider"] != self.adapter.provider or (
             self.adapter.provider == "google"
-            and config["provider_sdk_version"] != package_version("google-genai")
+            and candidate["sdk_version"] != package_version("google-genai")
         ):
             await self.finish(run, "CHECKPOINT_INCOMPATIBLE")
             return
@@ -141,7 +190,7 @@ class DurableEngine:
             return
         version, _ = row
         try:
-            self.adapter.validate(version.primary_model)
+            self.adapter.validate(candidate["model"])
             tools = await ToolRegistry(self.session).resolve(
                 run.organization_id, version.tool_version_ids
             )
@@ -166,7 +215,12 @@ class DurableEngine:
                 raise ValueError("Invalid continuation cursor")
             if state.get("model_call_id"):
                 recorded_call = await self.session.get(ModelCall, UUID(state["model_call_id"]))
-                if recorded_call is None or recorded_call.run_id != run.id:
+                if (
+                    recorded_call is None
+                    or recorded_call.run_id != run.id
+                    or recorded_call.model != candidate["model"]
+                    or recorded_call.provider != candidate["provider"]
+                ):
                     raise ValueError("Invalid model call binding")
             if state["phase"] == "TOOLS":
                 restored = load_result(state["result"])
@@ -190,7 +244,7 @@ class DurableEngine:
             await self.finish(run, "CHECKPOINT_INCOMPATIBLE")
             return
         request = ModelRequest(
-            model=version.primary_model,
+            model=candidate["model"],
             goal=version.goal,
             instructions=version.instructions,
             message=run.input["message"],
@@ -228,6 +282,9 @@ class DurableEngine:
             transition_run(self.session, run, RunState.RUNNING)
             await self.save(run, state)
         while not await self.stopped(run):
+            if pricing.budget_exceeded(run):
+                await self.finish(run, "BUDGET_EXCEEDED")
+                return
             if state["phase"] == "MODEL":
                 if state["step"] > version.runtime_config["max_steps"]:
                     await self.finish(run, "STEP_LIMIT_EXCEEDED")
@@ -241,6 +298,17 @@ class DurableEngine:
                         "MODEL_OUTCOME_UNKNOWN",
                         datetime.now(UTC),
                     )
+                    generation = (call.cost_details or {}).get("circuit_generation")
+                    if generation is not None:
+                        await health.observe(
+                            self.session,
+                            run.organization_id,
+                            call.provider,
+                            call.model,
+                            generation,
+                            "MODEL_OUTCOME_UNKNOWN",
+                        )
+                    await pricing.record(self.session, run, call)
                     await self.retry(run, state, "MODEL_OUTCOME_UNKNOWN")
                     return
                 call = ModelCall(
@@ -276,6 +344,9 @@ class DurableEngine:
                 if failure:
                     await self.retry(run, state, failure)
                     return
+                if pricing.budget_exceeded(run):
+                    await self.finish(run, "BUDGET_EXCEEDED")
+                    return
                 if result.finish_reason != "STOP":
                     await self.finish(run, "MODEL_RESPONSE_INCOMPLETE")
                     return
@@ -310,6 +381,7 @@ class DurableEngine:
                     exchanges.append(ToolExchange(response=result, results=state["results"]))
                     state = {
                         "phase": "MODEL",
+                        "model_index": state.get("model_index", 0),
                         "step": state["step"] + 1,
                         "attempt": 0,
                         "model_call_id": None,

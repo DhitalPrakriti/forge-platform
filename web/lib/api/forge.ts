@@ -4,6 +4,7 @@ import type {
   Policy,
   Approval,
   ModelCall,
+  ModelHealth,
   Organization,
   Run,
   RunEvent,
@@ -21,6 +22,7 @@ const json = (body: unknown): RequestInit => ({
 });
 const id = encodeURIComponent;
 export const api = {
+  modelHealth: (org: string) => request<ModelHealth[]>("/models/health", org),
   mcpServers: (org: string) => request<{ name: string }[]>("/mcp/servers", org),
   discoverMcp: (org: string, server: string) =>
     request<MCPDiscoveredTool[]>(`/mcp/servers/${id(server)}/tools`, org),

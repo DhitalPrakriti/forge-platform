@@ -102,7 +102,7 @@ Create `forge_test` first. The ordinary `FORGE_DATABASE_URL` is used by standalo
 - `forge.md`: source-of-truth specs and architecture decisions.
 - `docs/PHASE_1_IMPLEMENTATION_REPORT.md`: detailed change and verification record.
 
-Organization, agent, and immutable version tables are implemented. Gemini and a labelled fake backend support initial execution. Durable queue/Redis workers and the local console are implemented. Provider fallback, production authentication, evaluations, and the full dashboard remain in later phases.
+Organization, agent, and immutable version tables are implemented. Gemini and a labelled fake backend support initial execution. Durable queue/Redis workers and the local console are implemented. Phase 7 adds bounded queued fallback, passive model health, circuit breakers, and text-cost estimates. Production authentication, evaluations, and the full dashboard remain in later phases.
 
 ## Architecture direction and session reviews
 
@@ -194,4 +194,21 @@ An interrupted model request can be retried with uncertain usage/charges; saved 
 
 Set `FORGE_MODEL_BACKEND=routed`, `FORGE_GEMINI_API_KEY`, and `FORGE_OPENAI_API_KEY` in both API and worker environments. Each immutable version's model identifier selects its provider (`gemini-...` or an OpenAI text model such as `gpt-...`). Use exact model IDs available to your account. The frontend never receives provider keys. Clone old fake versions to configure real model IDs; existing runs are not changed. Explicit `fake`, `gemini`, and `openai` modes remain available.
 
-OpenAI uses Responses through the existing httpx dependency. Tool requests still pass through FORGE authorization and execution. No automatic fallback or dollar-budget enforcement is implemented yet, and uncalculated costs remain null. See [provider connection and review steps](docs/PROVIDER_CONNECTION_SESSION.md).
+OpenAI uses Responses through the existing httpx dependency. Tool requests still pass through FORGE authorization and execution. The initial provider slice is now extended by Phase 7 routing and accounting below. Uncalculated costs remain null. See [provider connection and review steps](docs/PROVIDER_CONNECTION_SESSION.md).
+
+
+## Phase 7 — fallback, availability, and cost
+
+Clone an agent version and enter **Fallback models (in order)**, one identifier per line. With `FORGE_MODEL_BACKEND=routed` and both server-side keys configured, queued runs can fall back between OpenAI and Gemini after bounded transient retries. Selection is pinned after the first successful response; tools and approvals retain the same provider continuation. Inline execution still rejects fallback configuration.
+
+The Overview page shows passive **Model availability**. Three transient failures open a model circuit for 30 seconds; one recovery probe is allowed after cooldown. No monitoring requests incur provider charges.
+
+The run inspector shows each attempted model, fallback events, estimated cost and any unknown subtotal. Prices are snapshotted for each new run. Defaults cover standard paid text for `gpt-4.1-mini` (including `gpt-4.1-mini-2025-04-14`) and `gemini-3.1-flash-lite`. Unknown actual model IDs remain unpriced. Configure additional exact IDs through the server-only JSON setting `FORGE_MODEL_PRICES`, for example:
+
+```sh
+export FORGE_MODEL_PRICES='{"your-exact-model-id":{"provider":"openai","input":"0.40","cached":"0.10","output":"1.60"}}'
+```
+
+Those example numbers are illustrative for custom IDs; verify their rates first. Rates are USD per million tokens. Run budgets stop further actions after observed estimates reach the threshold; **they are not billing caps**. Failed calls may have unknown charges, a single call may overshoot, and paid-tier estimates do not account for free credits, taxes, or external tool charges.
+
+Apply `uv run alembic upgrade head` with your configured database URL and restart API/worker. No new dependency is required. See [Phase 7 report](docs/PHASE_7_IMPLEMENTATION_REPORT.md) for all files, tests, limitations, and review order. Earlier phase sections above describe their original milestones.

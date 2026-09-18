@@ -30,6 +30,20 @@ export const versionSchema = z.object({
     .trim()
     .min(1, "Enter the model identifier.")
     .max(200),
+  fallback_models_text: z
+    .string()
+    .optional()
+    .refine((value) => {
+      const models = (value || "")
+        .split(/[\n,]/)
+        .map((v) => v.trim())
+        .filter(Boolean);
+      return (
+        models.length <= 10 &&
+        new Set(models).size === models.length &&
+        models.every((v) => v.length <= 200)
+      );
+    }, "Use up to 10 distinct model identifiers."),
   max_steps: z.number().int().min(1).max(1000),
   max_runtime_seconds: z.number().int().min(1).max(86400),
   max_cost_per_run_usd: z

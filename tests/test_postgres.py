@@ -33,11 +33,11 @@ def test_migrations_database_and_readiness():
             await db.close()
 
     alembic("upgrade", "head")
-    assert asyncio.run(revision()) == "0007_mcp_tools"
+    assert asyncio.run(revision()) == "0008_model_routing"
     alembic("downgrade", "base")
     assert asyncio.run(revision()) is None
     alembic("upgrade", "head")
-    assert asyncio.run(revision()) == "0007_mcp_tools"
+    assert asyncio.run(revision()) == "0008_model_routing"
     alembic("check")
     with TestClient(create_app(Settings(_env_file=None, database_url=url))) as client:
         response = client.get("/api/v1/health/ready")

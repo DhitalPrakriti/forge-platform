@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from forge.api.registry import Limit, Scope, require_development_registry
 from forge.db.session import get_session
 from forge.durability.service import DurabilityService
+from forge.model_router import health
 from forge.model_router.base import ModelAdapter
 from forge.model_router.factory import adapter_for
+from forge.model_router.schemas import ModelHealthRead
 from forge.runtime.schemas import EventRead, ModelCallRead, RunCreate, RunRead
 from forge.runtime.service import RunService
 
@@ -96,3 +98,8 @@ async def retry_run(
     )
     response.status_code = 202 if created else 200
     return run
+
+
+@router.get("/models/health", response_model=list[ModelHealthRead])
+async def model_health(scope: Scope, service: Service):
+    return await health.listing(service.session, scope)

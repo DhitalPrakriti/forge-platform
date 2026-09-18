@@ -30,6 +30,7 @@ export function VersionForm({
       goal: source?.goal || "",
       instructions: source?.instructions || "",
       primary_model: source?.primary_model || "",
+      fallback_models_text: source?.fallback_models.join("\n") || "",
       max_steps: source?.runtime_config.max_steps ?? 12,
       max_runtime_seconds: source?.runtime_config.max_runtime_seconds ?? 180,
       max_cost_per_run_usd:
@@ -50,7 +51,10 @@ export function VersionForm({
         budget_config: { max_cost_per_run_usd: values.max_cost_per_run_usd },
         runtime_template_revision:
           source?.runtime_template_revision || "standard-agent-v1",
-        fallback_models: source?.fallback_models || [],
+        fallback_models: (values.fallback_models_text || "")
+          .split(/[\n,]/)
+          .map((v) => v.trim())
+          .filter(Boolean),
         tool_version_ids: values.tool_version_ids,
         policy_version_ids: values.policy_version_ids,
         evaluation_suite_version_id:
@@ -143,6 +147,19 @@ export function VersionForm({
               aria-invalid={!!errors.primary_model}
             />
           </Field>
+          <Field
+            name="fallback_models_text"
+            label="Fallback models (in order)"
+            error={errors.fallback_models_text?.message}
+            hint="Optional: one model per line. Queued runs try these after transient failures, before the first successful response. Both providers must be configured on the server."
+          >
+            <textarea
+              id="fallback_models_text"
+              rows={3}
+              className="mono"
+              {...form.register("fallback_models_text")}
+            />
+          </Field>
           <div className="two-column compact">
             <Field
               name="max_steps"
@@ -179,7 +196,7 @@ export function VersionForm({
             name="max_cost_per_run_usd"
             label="Budget per run (USD)"
             error={errors.max_cost_per_run_usd?.message}
-            hint="Saved configuration only. Budget enforcement is planned for Phase 7."
+            hint="Stops further actions after recorded estimates reach this amount. A call can exceed it; unknown charges are excluded. This is not a billing cap."
           >
             <input
               id="max_cost_per_run_usd"
@@ -188,8 +205,8 @@ export function VersionForm({
             />
           </Field>
           <div className="inset-note">
-            Fallback models and evaluation suites remain deferred. Existing
-            bindings for those features are preserved when cloning.
+            Evaluation suites remain deferred. Existing evaluation bindings are
+            preserved when cloning.
           </div>
         </div>
       </Card>

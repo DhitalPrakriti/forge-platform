@@ -13,6 +13,7 @@ const routes: Record<string, RegExp[]> = {
     /^tools$/,
     new RegExp(`^tools/${uuid}$`),
     /^health\/ready$/,
+    /^models\/health$/,
     /^organizations\/current$/,
     /^agents$/,
     new RegExp(`^agents/${uuid}(/versions(/${uuid})?)?$`),

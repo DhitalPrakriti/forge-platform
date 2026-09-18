@@ -25,7 +25,7 @@ def parse_response(data: dict) -> ModelResult:
         actual_model=data.get("model", "unknown"),
         input_tokens=usage.get("input_tokens"),
         output_tokens=usage.get("output_tokens"),
-        usage=usage,
+        usage={**usage, "service_tier": data.get("service_tier")},
         tool_requests=calls,
         finish_reason="STOP" if data.get("status") == "completed" else "INCOMPLETE",
         provider_content={"openai_output": output},
@@ -67,6 +67,7 @@ class OpenAIAdapter:
             "input": inputs,
             "max_output_tokens": request.max_output_tokens,
             "store": False,
+            "service_tier": "default",
             "include": ["reasoning.encrypted_content"],
             "tools": [
                 {

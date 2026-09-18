@@ -134,7 +134,7 @@ test("create, run, inspect, clone, archive, and switch workspaces", async ({
   await expect(page.locator(".error-notice")).toContainText("not found");
   const selected = await page.getByLabel("Active workspace").inputValue();
   const forbidden = await request.get(
-    `http://127.0.0.1:8000/api/v1/runs/${runId}`,
+    `${process.env.FORGE_API_URL || "http://127.0.0.1:8000"}/api/v1/runs/${runId}`,
     { headers: { "X-Organization-ID": selected } },
   );
   expect(forbidden.status()).toBe(404);
@@ -622,4 +622,28 @@ test("discover MCP tool, bind a version, approve and inspect a real tool result"
     path: testInfo.outputPath("mcp-run-completed.png"),
     fullPage: true,
   });
+});
+
+test("fallback configuration survives immutable cloning", async ({ page }) => {
+  await workspace(page, "Model routing review");
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Model availability" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Availability is unknown/)).toBeVisible();
+  await version(page);
+  await page.getByRole("link", { name: "Clone version" }).click();
+  await page.getByLabel("Version label").fill("with-fallbacks");
+  await page
+    .getByLabel("Fallback models (in order)")
+    .fill("gpt-4.1-mini\ngemini-3.1-flash-lite");
+  await expect(page.getByText(/This is not a billing cap/)).toBeVisible();
+  await page.getByRole("button", { name: "Save immutable version" }).click();
+  await expect(
+    page.getByRole("heading", { name: "with-fallbacks", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Clone version" }).click();
+  await expect(page.getByLabel("Fallback models (in order)")).toHaveValue(
+    "gpt-4.1-mini\ngemini-3.1-flash-lite",
+  );
 });

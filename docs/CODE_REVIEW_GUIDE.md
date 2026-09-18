@@ -323,7 +323,7 @@ Review question: does every displayed metric describe its actual source and scop
 
 ## Phase 7 provider connection slice
 
-Read `PROVIDER_CONNECTION_SESSION.md` for every changed file, verification, and credential setup. Follow `model_router/factory.py` into `openai.py`, then API run admission, durable engine selection, and the private checkpoint codec. Gemini and OpenAI share FORGE's model/tool contract; HTTP error bodies and private provider continuation must not enter public evidence. Full Phase 7 fallback/health/breaker/accounting remains pending.
+Read `PROVIDER_CONNECTION_SESSION.md` for every changed file, verification, and credential setup. Follow `model_router/factory.py` into `openai.py`, then API run admission, durable engine selection, and the private checkpoint codec. Gemini and OpenAI share FORGE's model/tool contract; HTTP error bodies and private provider continuation must not enter public evidence. This initial slice is extended by the Phase 7 section below.
 
 ## Pasted-code assistant and conversations
 
@@ -332,3 +332,22 @@ Read `CODE_REVIEW_CONVERSATION_SESSION.md` for the complete file map. Follow `Fo
 ## MCP server tools
 
 Read `MCP_SESSION.md`, then `tools/mcp_client.py` → `mcp_registry.py` → tool model/migration 0007 → `tools/hub.py` → approval/retry services. Follow the browser from `components/tools/mcp-tools.tsx` through the thin API and exact-version selection. `examples/mcp_code_server.py` demonstrates a real separately running server. Tests cover both live local MCP HTTP and a worker interruption after the durable external claim. Explain why remote metadata is not authorization and why unknown external effects are never automatically replayed.
+
+
+## Phase 7 — model reliability and cost accounting
+
+Read `PHASE_7_IMPLEMENTATION_REPORT.md` for the complete file map and checks. Review in this order:
+
+1. `runtime/service.py`: validate candidates and pin prices at admission.
+2. `durability/engine.py`: retry/fallback cursor and the boundary before any successful model response.
+3. `runtime/engine.py`: circuit admission, one provider attempt, health observation, pricing.
+4. `model_router/health.py`, `models.py`, `schemas.py`: persisted breaker generations, probe lease, public view.
+5. `model_router/pricing.py`: cached input, thinking output, unknown costs and observed-budget stop.
+6. Migration `0008_model_routing.py`, then pricing/routing tests.
+7. Version form, model-health panel, and run inspector in `web/components/`.
+
+Walkthrough: create a version with OpenAI primary/Gemini fallback → POST run snapshots both providers and rates → worker records a failed primary attempt → retry limit triggers MODEL_FALLBACK and an immediate outbox wakeup → a fresh worker restores Gemini selection → model result is priced using its actual model → run retains the original request and known subtotal while its total stays unknown if the failed call's charge is unknown.
+
+Review questions: Why do we refuse fallback after a tool response? Why isn't a failed call priced as zero? Why can a budget overshoot? How does a stale half-open response avoid overwriting newer health? Why do old runs retain their original prices?
+
+Model-call records now also include SKIPPED routing attempts. Such an attempt is evidence that no provider request was sent, not a tool invocation. API data remains development-scoped; this phase does not replace production authentication.
