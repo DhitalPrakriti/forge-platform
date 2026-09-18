@@ -2394,3 +2394,25 @@ The existing console now uses a dark green navigation rail, light content surfac
 ## User-authorized conversation and code-review extension
 
 The user requested a useful code-review agent with follow-up chat on September 15, 2026. Output now renders Markdown/GFM with raw HTML and remote images disabled. Completed run inspectors offer a follow-up composer and prior-message history. Each turn is a separate inspectable run of the same immutable version; the server derives bounded text history from an organization-scoped completed parent. Tools remain version-bound. `inspect_python` inspects pasted Python syntax and structure without execution. This supersedes the earlier single-turn-only scope; full conversation management, streaming, arbitrary code execution and monetary enforcement remain unimplemented. See `../docs/CODE_REVIEW_CONVERSATION_SESSION.md`.
+
+## Planned business integration experience — September 18, 2026
+
+User-requested product direction; not implemented by this specification update.
+
+Business owners should be able to create useful agents by connecting existing services and selecting capabilities through the frontend, without writing Python for each agent.
+
+Target journey:
+
+1. Create an agent and describe its purpose, such as restaurant customer service.
+2. Open a connection catalog and choose the restaurant's reservation, menu, or ordering service.
+3. Connect the account through the service's supported authentication flow. Credentials remain protected on the backend and scoped to the workspace.
+4. Discover capabilities and review descriptions, inputs, access requirements, and action risks.
+5. Select permitted tool revisions when creating a new immutable agent version. Several agents may reuse one connection with different permissions.
+6. Test a conversation, inspect requested tools and results, and review actions requiring approval.
+7. See connection health, expired authorization, unsupported capabilities, and reconnect/disconnect actions clearly.
+
+The model may suggest relevant existing tools based on the agent's goal. Suggestions are not authorization, and a suggested name is not an implemented integration. Users explicitly select tools; FORGE enforces permissions at execution time.
+
+Restaurant example: `get_menu`, `check_availability`, `create_reservation`, and `get_order_status` are illustrative planned capabilities, not installed tools or promised provider integrations. A customer asking for a table triggers availability lookup; the assistant presents actual results and requests customer confirmation before a booking action. Customer confirmation and platform/operator approval are separate requirements.
+
+Current boundary: MCP discovery, registration, exact-version binding, approvals, and execution exist. Initial endpoints and credentials are still configured server-side. Frontend account connection, OAuth, a business integration catalog, and connection lifecycle management remain planned. Every MCP call currently requires operator approval; policy-controlled unattended reads require a separate implementation and review.

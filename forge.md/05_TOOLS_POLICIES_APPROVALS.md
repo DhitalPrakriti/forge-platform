@@ -137,3 +137,17 @@ The local console now supports operator-configured Streamable HTTP MCP servers: 
 All MCP tool calls require an authenticated, exact-payload approval under the internal `mcp-review` policy. Remote annotations never grant permission. Endpoint/definition drift fails closed. External call claims commit before dispatch; unknown outcomes and retries after authorized external attempts require reconciliation instead of automatic repetition. The existing local PostgreSQL atomic-recovery exception does not apply to MCP.
 
 Initial compatibility: bearer/no-auth Streamable HTTP, bounded object schemas without references/regex, text/structured JSON output. OAuth, stdio, production tenant credential management, price enforcement and irreversible downstream exactly-once effects are not claimed. See `docs/MCP_SESSION.md` for setup, limitations and the code-review walkthrough.
+
+## Planned reusable business integrations — September 18, 2026
+
+Captured at the user's request; no runtime policy changes in this update. Pair this direction with the planned business integration experience in `FORGE_FRONTEND_SPEC.md`.
+
+An agent supplies instructions and selects permitted capabilities. A connection supplies authenticated access to an actual business system. A tool implementation supplies executable behavior. Creating an agent alone does not create that connection or implementation.
+
+Prefer an existing compatible MCP server where the business service provides one. If only a conventional API exists, an integration handler or MCP wrapper must be implemented once and may then be reused across agents. If no supported interface exists, show that limitation rather than inventing access or fabricating successful results. A future HTTP/API integration builder is an option to evaluate, not an existing feature or committed implementation.
+
+Restaurant reference flow: customer asks for four seats at a specified time/date → permitted availability tool queries the connected reservation service → model explains returned options → customer confirms the exact booking details → applicable FORGE policy/approval checks → reservation tool executes → assistant reports the actual result. Booking side effects require downstream idempotency or reconciliation; an uncertain response must not cause an automatic duplicate booking.
+
+Future policy design should distinguish trusted, explicitly configured read permissions from actions such as bookings, cancellations, refunds, or messages. Server read-only annotations and model judgments never grant authorization. Customer confirmation does not replace platform permission or any required operator approval. The current all-MCP-calls-require-approval behavior remains unchanged.
+
+Connection isolation, credential lifecycle, revocation, schema changes, and per-agent permissions must be addressed before offering this workflow to multiple businesses. Disconnecting or revoking a connection must prevent future authorized calls while preserving immutable version and execution evidence. Choose the first real restaurant provider and its supported interface before committing implementation details.
