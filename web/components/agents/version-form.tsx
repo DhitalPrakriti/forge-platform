@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ToolCatalog } from "../tools/tool-catalog";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,7 @@ import { api } from "@/lib/api/forge";
 import type { Version, VersionInput } from "@/lib/api/types";
 import { versionSchema, type VersionValues } from "@/lib/schemas";
 import { Button } from "../ui/button";
-import { Badge, Card, ErrorNotice, Field, Loading } from "../ui/shared";
+import { Card, ErrorNotice, Field, Loading, JsonDetails } from "../ui/shared";
 export function VersionForm({
   org,
   agentId,
@@ -218,25 +219,18 @@ export function VersionForm({
         {tools.isPending && <Loading />}
         <fieldset className="tool-choices">
           <legend className="sr-only">Allowed tool revisions</legend>
-          {tools.data?.map((tool) => (
-            <label className="tool-choice" key={tool.id}>
-              <input
-                type="checkbox"
-                value={tool.id}
-                {...form.register("tool_version_ids")}
-                disabled={
-                  tool.status !== "ACTIVE" && !selectedTools.includes(tool.id)
-                }
-              />
-              <span>
-                <strong className="mono">{tool.name}</strong>
-                <span className="muted">
-                  v{tool.version} · {tool.description}
-                </span>
-              </span>
-              <Badge>{tool.status}</Badge>
-            </label>
-          ))}
+          {tools.data && (
+            <ToolCatalog
+              tools={tools.data}
+              selected={selectedTools}
+              onSelect={(ids) =>
+                form.setValue("tool_version_ids", ids, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+          )}
           {tools.data &&
             source?.tool_version_ids
               .filter((id) => !tools.data.some((tool) => tool.id === id))
@@ -284,43 +278,51 @@ export function VersionForm({
           a tool permits the model to request it; it does not force a call.
         </p>
       </Card>
-      <Card
-        title="Refund policy"
-        subtitle="Select the immutable policy revision when allowing issue_refund."
-      >
-        <ErrorNotice
-          error={policies.error}
-          retry={() => void policies.refetch()}
-        />
-        {policies.data
-          ?.filter((policy) => policy.name === "demo-refund")
-          .map((policy) => (
-            <label className="tool-choice" key={policy.id}>
-              <input
-                type="checkbox"
-                value={policy.id}
-                {...form.register("policy_version_ids")}
-              />
-              <span>
-                {policy.name} v{policy.version}
-                <span className="mono break-word">{policy.id}</span>
-              </span>
-            </label>
-          ))}
-        {!policies.data?.length && (
-          <p>Register the refund policy in Tool Hub, then refresh.</p>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void policies.refetch()}
+      {(tools.data?.some(
+        (t) => t.name === "issue_refund" && selectedTools.includes(t.id),
+      ) ||
+        (source?.policy_version_ids.length ?? 0) > 0) && (
+        <Card
+          title="Refund policy"
+          subtitle="Select the immutable policy revision when allowing issue_refund."
         >
-          Refresh policies
-        </Button>
-        {errors.policy_version_ids && (
-          <p role="alert">Select at most one valid policy revision.</p>
-        )}
-      </Card>
+          <ErrorNotice
+            error={policies.error}
+            retry={() => void policies.refetch()}
+          />
+          {policies.data
+            ?.filter((policy) => policy.name === "demo-refund")
+            .map((policy) => (
+              <label className="tool-choice" key={policy.id}>
+                <input
+                  type="checkbox"
+                  value={policy.id}
+                  {...form.register("policy_version_ids")}
+                />
+                <span>
+                  {policy.name} v{policy.version}
+                </span>
+              </label>
+            ))}
+          <JsonDetails
+            label="Policy technical details"
+            value={policies.data?.filter((p) => p.name === "demo-refund") || []}
+          />
+          {!policies.data?.length && (
+            <p>Register the refund policy in Tool Hub, then refresh.</p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void policies.refetch()}
+          >
+            Refresh policies
+          </Button>
+          {errors.policy_version_ids && (
+            <p role="alert">Select at most one valid policy revision.</p>
+          )}
+        </Card>
+      )}
       <ErrorNotice error={create.error} />
       <div className="actions">
         <Button type="submit" disabled={create.isPending}>

@@ -1,21 +1,16 @@
 "use client";
+import { toolPresentation } from "@/lib/tool-presentation";
+import { ToolCatalog } from "./tool-catalog";
 import { McpTools } from "./mcp-tools";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Wrench, Plus, ShieldCheck } from "lucide-react";
+import { Plus, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api/forge";
 import type { Tool, ToolName } from "@/lib/api/types";
 import { DEMO_TOOLS } from "@/lib/tool-demo";
 import { useWorkspace } from "../layout/providers";
 import { WorkspaceScreen } from "../workspace/workspace-screen";
-import {
-  Badge,
-  Card,
-  ErrorNotice,
-  JsonDetails,
-  Loading,
-  PageHeading,
-} from "../ui/shared";
+import { Card, ErrorNotice, Loading, PageHeading } from "../ui/shared";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 export function ToolsScreen() {
@@ -51,8 +46,8 @@ export function ToolsScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="PHASE 5 / TOOL HUB"
-        title="Give agents permission to act."
+        eyebrow="WORKSPACE / TOOL HUB"
+        title="Tools & capabilities"
         description="Register an installed tool, then select its exact revision when creating a new agent version."
       />
       <div className="notice">
@@ -62,85 +57,65 @@ export function ToolsScreen() {
           server and require your approval before each call.
         </span>
       </div>
-      <McpTools
-        key={workspace.id}
-        org={workspace.id}
-        tools={tools.data || []}
-      />
       <ErrorNotice error={tools.error} retry={() => void tools.refetch()} />
       <ErrorNotice error={register.error || patch.error} />
       {tools.isPending && <Loading />}
       {tools.data && (
-        <div className="tool-grid">
-          {DEMO_TOOLS.map((demo) => {
-            const tool = tools.data.find(
-              (item) => item.name === demo.name && item.version === "1.0.0",
-            );
-            return (
-              <Card key={demo.name} title={demo.label} subtitle={demo.name}>
-                <div className="form-stack">
-                  <Wrench size={23} />
-                  <p className="muted">
-                    {tool?.description || demo.description}
-                  </p>
-                  <div className="actions">
-                    <Badge>{tool?.status || "NOT REGISTERED"}</Badge>
-                    <span className="mono">v1.0.0</span>
-                    {tool && <Badge>{tool.risk_level}</Badge>}
-                  </div>
-                  {tool ? (
-                    <>
-                      <p className="mono break-word">{tool.id}</p>
-                      <dl className="definition-list">
-                        <div>
-                          <dt>Timeout</dt>
-                          <dd>{tool.timeout_seconds}s</dd>
-                        </div>
-                        <div>
-                          <dt>Idempotency</dt>
-                          <dd>
-                            {tool.idempotency_supported
-                              ? "Supported"
-                              : "Not supported"}
-                          </dd>
-                        </div>
-                      </dl>
-                      <Button
-                        variant="outline"
-                        disabled={patch.isPending}
-                        onClick={() =>
-                          tool.status === "ACTIVE"
-                            ? setDisable(tool)
-                            : patch.mutate({ id: tool.id, status: "ACTIVE" })
-                        }
-                      >
-                        {tool.status === "ACTIVE"
-                          ? `Disable ${demo.name}`
-                          : `Enable ${demo.name}`}
-                      </Button>
-                      <JsonDetails
-                        value={{
-                          input: tool.input_schema,
-                          output: tool.output_schema,
-                        }}
-                        label="Input / output schemas"
-                      />
-                    </>
-                  ) : (
-                    <Button
-                      disabled={register.isPending}
-                      onClick={() => register.mutate(demo.name)}
-                    >
-                      <Plus size={15} />
-                      Register {demo.name}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <ToolCatalog
+          tools={tools.data}
+          action={(tool) => (
+            <Button
+              variant="outline"
+              disabled={patch.isPending}
+              aria-label={`${tool.status === "ACTIVE" ? "Disable" : "Enable"} ${tool.name}`}
+              onClick={() =>
+                tool.status === "ACTIVE"
+                  ? setDisable(tool)
+                  : patch.mutate({ id: tool.id, status: "ACTIVE" })
+              }
+            >
+              {tool.status === "ACTIVE"
+                ? `Disable ${toolPresentation(tool).title}`
+                : `Enable ${toolPresentation(tool).title}`}
+            </Button>
+          )}
+        />
       )}
+      <details className="catalog-install">
+        <summary>Connect an MCP server</summary>
+        <McpTools
+          key={workspace.id}
+          org={workspace.id}
+          tools={tools.data || []}
+        />
+      </details>
+      <details className="catalog-install">
+        <summary>Add built-in capabilities</summary>
+        <p className="muted">
+          Register only what your agent needs. Customer-service tools use demo
+          data.
+        </p>
+        <div className="capability-grid">
+          {DEMO_TOOLS.filter(
+            (demo) =>
+              !tools.data?.some(
+                (t) => t.name === demo.name && t.version === "1.0.0",
+              ),
+          ).map((demo) => (
+            <article className="capability-card" key={demo.name}>
+              <h3>{demo.label}</h3>
+              <p>{demo.description}</p>
+              <Button
+                disabled={register.isPending}
+                onClick={() => register.mutate(demo.name)}
+              >
+                <Plus size={15} />
+                Register {demo.name}
+              </Button>
+            </article>
+          ))}
+        </div>
+      </details>
       <Card
         title="How a tool call works"
         subtitle="The model requests a function. FORGE decides whether it may run."
@@ -156,27 +131,29 @@ export function ToolsScreen() {
           below.
         </p>
       </Card>
-      <Card
-        title="Refund policy v1.0.0"
-        subtitle="USD amounts up to 100 allow; above 100 through 500 require approval; above 500 deny."
-      >
-        <Button disabled={policy.isPending} onClick={() => policy.mutate()}>
-          Register refund policy
-        </Button>
-        <ErrorNotice error={policy.error} />
-        {policy.data && (
-          <p role="status" className="mono break-word">
-            Registered policy: {policy.data.id}. Select it in your new agent
-            version.
-          </p>
-        )}
-      </Card>
+      <details className="catalog-install">
+        <summary>Customer-service demo policy</summary>
+        <Card
+          title="Refund policy v1.0.0"
+          subtitle="USD amounts up to 100 allow; above 100 through 500 require approval; above 500 deny."
+        >
+          <Button disabled={policy.isPending} onClick={() => policy.mutate()}>
+            Register refund policy
+          </Button>
+          <ErrorNotice error={policy.error} />
+          {policy.data && (
+            <p role="status" className="mono break-word">
+              Refund policy registered. Select it in your new agent version.
+            </p>
+          )}
+        </Card>
+      </details>
       <ConfirmDialog
         open={!!disable}
         onOpenChange={(open) => {
           if (!open) setDisable(null);
         }}
-        title={`Disable ${disable?.name}?`}
+        title={`Disable ${disable ? toolPresentation(disable).title : "tool"}?`}
         description="This blocks new executions of this tool across every version in this workspace. Calls already authorized may finish. You can enable it again later."
         confirmLabel="Disable tool"
         cancelLabel="Keep enabled"

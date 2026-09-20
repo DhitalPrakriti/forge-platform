@@ -280,6 +280,7 @@ test("register tools, clone permissions, create a demo ticket, and inspect the c
 }, testInfo) => {
   await workspace(page, "Tool review workspace");
   await page.goto("/tools");
+  await page.getByText("Add built-in capabilities", { exact: true }).click();
   for (const name of [
     "lookup_customer",
     "lookup_transactions",
@@ -385,16 +386,20 @@ test("refund policy, human approval, and automatic worker continuation", async (
   await workspace(page, "Refund review");
   const initial = await version(page);
   await page.goto("/tools");
+  await page.getByText("Add built-in capabilities", { exact: true }).click();
   await page
     .getByRole("button", { name: "Register issue_refund", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Disable issue_refund", exact: true }),
   ).toBeVisible();
+  await page.getByText("Customer-service demo policy", { exact: true }).click();
   await page
     .getByRole("button", { name: "Register refund policy", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Registered policy");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Refund policy registered" }),
+  ).toBeVisible();
   await page.goto(initial);
   await page.getByRole("link", { name: "Clone version" }).click();
   await page.getByLabel("Version label").fill("v2-refunds");
@@ -565,18 +570,24 @@ test("discover MCP tool, bind a version, approve and inspect a real tool result"
   await workspace(page, "MCP review");
   const initial = await version(page);
   await page.goto("/tools");
-  await page.getByLabel("MCP server").selectOption(server!);
+  await page.getByText("Connect an MCP server", { exact: true }).click();
+  await page.getByLabel("MCP server", { exact: true }).selectOption(server!);
   await page
     .getByRole("button", { name: "Discover tools", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Register inspect_code", exact: true })
     .click();
-  const status = page.getByRole("status");
+  const status = page
+    .getByRole("status")
+    .filter({ hasText: "Clone your agent version" });
   await expect(status).toContainText("Clone your agent version");
-  const alias = (await status.innerText()).match(
-    /Registered (mcp_[a-zA-Z0-9_]+)\./,
-  )![1];
+  const registered = page.locator('button[aria-label^="Disable mcp_"]');
+  await expect(registered).toBeVisible();
+  const alias = (await registered.getAttribute("aria-label"))!.replace(
+    "Disable ",
+    "",
+  );
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(

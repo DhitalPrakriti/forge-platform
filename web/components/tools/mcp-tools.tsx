@@ -6,7 +6,7 @@ import type { MCPDiscoveredTool, Tool } from "@/lib/api/types";
 import { Button } from "../ui/button";
 import { Badge, Card, ErrorNotice, JsonDetails, Loading } from "../ui/shared";
 
-export function McpTools({ org, tools }: { org: string; tools: Tool[] }) {
+export function McpTools({ org }: { org: string; tools: Tool[] }) {
   const [server, setServer] = useState("");
   const client = useQueryClient();
   const servers = useQuery({
@@ -23,16 +23,6 @@ export function McpTools({ org, tools }: { org: string; tools: Tool[] }) {
     onSuccess: () =>
       void client.invalidateQueries({ queryKey: [org, "tools"] }),
   });
-  const patch = useMutation({
-    mutationFn: (tool: Tool) =>
-      api.patchTool(
-        org,
-        tool.id,
-        tool.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-      ),
-    onSuccess: () =>
-      void client.invalidateQueries({ queryKey: [org, "tools"] }),
-  });
   return (
     <Card
       title="Connect tools with MCP"
@@ -44,9 +34,7 @@ export function McpTools({ org, tools }: { org: string; tools: Tool[] }) {
           the backend. Every external call asks for approval in the run page.
         </p>
         <ErrorNotice
-          error={
-            servers.error || discovered.error || register.error || patch.error
-          }
+          error={servers.error || discovered.error || register.error}
         />
         {servers.isPending && <Loading />}
         {servers.data?.length === 0 && (
@@ -101,28 +89,10 @@ export function McpTools({ org, tools }: { org: string; tools: Tool[] }) {
         ))}
         {register.data && (
           <p role="status">
-            Registered {register.data.name}. Clone your agent version and select
-            this tool under tool permissions.
+            Tool registered. Clone your agent version and select this tool under
+            tool permissions.
           </p>
         )}
-        {tools
-          .filter((t) => t.handler_type === "MCP_HTTP_V1")
-          .map((tool) => (
-            <div className="inset-note" key={tool.id}>
-              <strong className="break-word">{tool.name}</strong>
-              <p>{tool.description}</p>
-              <Badge>{tool.status}</Badge>
-              <Badge>APPROVAL REQUIRED</Badge>
-              <JsonDetails label="Registered revision" value={tool} />
-              <Button
-                variant="outline"
-                disabled={patch.isPending}
-                onClick={() => patch.mutate(tool)}
-              >
-                {tool.status === "ACTIVE" ? "Disable" : "Enable"} {tool.name}
-              </Button>
-            </div>
-          ))}
       </div>
     </Card>
   );

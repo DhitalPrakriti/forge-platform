@@ -1575,3 +1575,115 @@ tbody tr:hover {
   color: #176b53;
   margin-bottom: 12px;
 }
+
+/* Capability catalog shared by the workspace and immutable version editor. */
+.capability-browser {
+  display: grid;
+  gap: 18px;
+}
+.capability-toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capability-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 220px;
+}
+.capability-search input {
+  width: 100%;
+}
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+}
+.capability-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #dce5e1;
+  background: white;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-wrap: anywhere;
+}
+.capability-card.is-selected {
+  border-color: #31856d;
+  box-shadow: inset 0 0 0 1px #31856d;
+  background: #f7fcf9;
+}
+.capability-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capability-heading > div {
+  flex: 1;
+  min-width: 120px;
+}
+.capability-heading h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.capability-icon {
+  padding: 10px;
+  background: #eaf4ee;
+  color: #276a54;
+  border-radius: 10px;
+}
+.capability-card p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.capability-guidance {
+  color: #63766f;
+}
+.capability-select,
+.selection-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+}
+.capability-select input,
+.selection-toggle input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.selected-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.selected-capabilities button {
+  background: #e8f3ed;
+  border: 1px solid #c8ddd0;
+  border-radius: 20px;
+  padding: 7px 12px;
+  color: #245c49;
+  cursor: pointer;
+}
+.catalog-install {
+  border: 1px solid #dce5e1;
+  border-radius: 14px;
+  padding: 20px;
+  background: white;
+  margin: 20px 0;
+}
+.catalog-install > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.catalog-install[open] > summary {
+  margin-bottom: 18px;
+}
+.capability-card .button {
+  white-space: normal;
+}

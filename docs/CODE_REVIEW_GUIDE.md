@@ -351,3 +351,7 @@ Walkthrough: create a version with OpenAI primary/Gemini fallback → POST run s
 Review questions: Why do we refuse fallback after a tool response? Why isn't a failed call priced as zero? Why can a budget overshoot? How does a stale half-open response avoid overwriting newer health? Why do old runs retain their original prices?
 
 Model-call records now also include SKIPPED routing attempts. Such an attempt is evidence that no provider request was sent, not a tool invocation. API data remains development-scoped; this phase does not replace production authentication.
+
+## Tool catalog UX — 2026-09-19
+
+See `TOOL_CATALOG_UX_SESSION.md` for the file map, checks and walkthrough. Read `web/lib/tool-presentation.ts` → `components/tools/tool-catalog.tsx` → `components/agents/version-form.tsx` → `components/tools/tools-screen.tsx`. The helper supplies labels, not authorization. The catalog filters a loaded list while maintaining independently controlled selected UUIDs. Technical details preserve exact identities; friendly labels never replace API bindings. Workspace disable controls are shared across built-in/MCP tools and require confirmation. Review whether filtering preserves hidden selections, disabled clones can be corrected, and refund policy bindings remain accessible.
