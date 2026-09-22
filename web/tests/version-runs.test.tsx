@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
-import { VersionRuns } from "../components/runs/version-runs";
+import { LatestRunLink } from "../components/runs/version-runs";
 import { api } from "../lib/api/forge";
 
 vi.mock("../lib/api/forge", () => ({ api: { versionRuns: vi.fn() } }));
-test("version history links to exact persisted run and identifies its input", async () => {
+test("latest run link opens the exact run without displaying message content", async () => {
   vi.mocked(api.versionRuns).mockResolvedValue([
     {
       id: "12345678-abcd-4000-8000-123456789abc",
@@ -16,13 +16,19 @@ test("version history links to exact persisted run and identifies its input", as
   ]);
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <VersionRuns org="workspace-id" versionId="version-id" />
+      <LatestRunLink org="workspace-id" versionId="version-id" />
     </QueryClientProvider>,
   );
-  expect(await screen.findByRole("link", { name: /Open run/ })).toHaveAttribute(
-    "href",
-    "/runs/12345678-abcd-4000-8000-123456789abc",
+  expect(
+    await screen.findByRole("link", { name: /View latest run/ }),
+  ).toHaveAttribute("href", "/runs/12345678-abcd-4000-8000-123456789abc");
+  expect(
+    screen.queryByText("Review my Python function"),
+  ).not.toBeInTheDocument();
+  expect(api.versionRuns).toHaveBeenCalledWith(
+    "workspace-id",
+    "version-id",
+    0,
+    1,
   );
-  expect(screen.getByText("Review my Python function")).toBeVisible();
-  expect(api.versionRuns).toHaveBeenCalledWith("workspace-id", "version-id", 0);
 });
