@@ -71,8 +71,6 @@ Vitest covers form validation, organization headers, structured errors, retry ke
 
 Read `lib/api/types.ts` → `lib/schemas.ts` → `lib/api/client.ts` → `lib/api/forge.ts` → `app/api/forge/[...path]/route.ts` → `components/layout/providers.tsx` → the screen you want to inspect. Route files under `app/` are thin entry points. Domain screens own forms and query orchestration; the backend still owns business rules.
 
-The full file inventory and one function-by-function walkthrough are in [the session report](../docs/FRONTEND_LOCAL_CONSOLE_SESSION.md).
-
 Technical references used: [Next.js installation](https://nextjs.org/docs/app/getting-started/installation), [shadcn manual setup](https://ui.shadcn.com/docs/installation/manual), and [TanStack Query React documentation](https://tanstack.com/query/latest/docs/framework/react).
 
 ## Phase 4: test a tool call
@@ -84,8 +82,6 @@ Technical references used: [Next.js installation](https://nextjs.org/docs/app/ge
 5. Inspect **Tool calls**: exact revision ID, normalized arguments, result/error, ALLOW/DENY, latency, and stable idempotency record. A successful one-tool fake example shows two model calls and one tool call.
 
 The sample customers are `cust_001` and `cust_002`. Customer/transaction data is synthetic. Demo tickets are saved in your organization's local database without contacting an external service. The original agent version keeps its original tool permissions. An unbound tool is denied; an inactive tool cannot newly execute. Disabling requires confirmation and can later be reversed with Enable.
-
-The original Phase 4 milestone added tool polling. Current Phase 6 additionally polls queue/retry/approval waits and supports approvals and local-effect recovery. Monetary budgets and external integrations remain deferred. The Phase 4 changes and complete test results are in [the implementation report](../docs/PHASE_4_IMPLEMENTATION_REPORT.md).
 
 ## Phase 5 approval walkthrough
 
@@ -102,5 +98,3 @@ The new browser approval test requires `FORGE_APPROVAL_REVIEWER_TOKEN` matching 
 ## Phase 6 worker controls
 
 Start PostgreSQL, Redis, the migrated API, and `python -m forge.durability.worker` before testing. API and worker must share configuration. New run responses are 202/QUEUED; the run inspector polls worker progress. Cancel run asks for confirmation and displays the saved result after the next safe boundary. A completed effect is not undone. Retry as new run links the new execution to its failed/timed-out original; the server blocks repetition of successful or unknown side effects.
-
-The browser suite now tests queued completion, automatic approval continuation, linked retry, and cancellation controls. The cancellation presentation fixture is isolated from the real worker cancellation tests in the backend suite. See [the Phase 6 implementation report](../docs/PHASE_6_IMPLEMENTATION_REPORT.md).

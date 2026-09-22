@@ -40,7 +40,7 @@ export function McpTools({ org }: { org: string; tools: Tool[] }) {
         {servers.data?.length === 0 && (
           <p className="inset-note">
             No MCP servers configured yet. Set FORGE_MCP_SERVERS on the API and
-            worker using the MCP setup guide in docs/MCP_SESSION.md, then
+            worker using the MCP setup section in the repository README, then
             restart them.
           </p>
         )}

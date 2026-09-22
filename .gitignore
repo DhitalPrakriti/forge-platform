@@ -17,3 +17,7 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# Personal specifications, learning notes, and session reports (local only).
+/docs/
+/forge.md/
