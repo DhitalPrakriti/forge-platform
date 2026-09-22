@@ -91,3 +91,9 @@ Concrete request: upload `restaurant.md` containing Monday opening hours → ser
 Review questions: Why do documents remain optional? Why doesn't an upload alter an old version? Where are model-provided document IDs rejected? What distinguishes a PDF page number from a text passage number? Why does a free search preview differ from a paid model run? What would semantic retrieval and production authentication need next?
 
 Recommended next step: upload a small handbook in Forge Development, preview keywords, clone an agent with the search capability, and ask a source-grounded question. Do not begin another phase automatically.
+
+## GitHub verification follow-up — 2026-09-22
+
+The initial backend GitHub workflow passed, but Frontend run 35771822771 stopped at `npm run format:check`: the new file-upload test in `web/tests/e2e/console.spec.ts` needed Prettier normalization. Earlier local verification omitted the full formatting gate. Reproduced locally with the same installed/locked Prettier 3.9.6 and reformatted that expression; no test behavior or application logic changed.
+
+Files changed for this fix: the browser test and this report. No migration, dependency or new test. Re-ran `npm run format:check`, `npm run lint`, `npm run typecheck`, and `npm test`: all passed, including 24 unit tests. Live local API readiness and Knowledge page both returned 200. Push the correction to dev and verify both GitHub workflows before reporting CI healthy. Future completion checks must include the exact workflow formatting gate after all edits.

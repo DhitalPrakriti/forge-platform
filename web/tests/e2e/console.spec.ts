@@ -665,15 +665,13 @@ test("upload knowledge, preview sources, bind a version and search through Tool 
   await workspace(page, "Knowledge workspace");
   await page.getByRole("link", { name: "Knowledge", exact: true }).click();
   await page.getByLabel("Document title").fill("Restaurant handbook");
-  await page
-    .getByLabel("Document file")
-    .setInputFiles({
-      name: "handbook.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from(
-        "# Opening hours\nMonday opening hours are 9am to 5pm. Reservations require the booking service.",
-      ),
-    });
+  await page.getByLabel("Document file").setInputFiles({
+    name: "handbook.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "# Opening hours\nMonday opening hours are 9am to 5pm. Reservations require the booking service.",
+    ),
+  });
   await page
     .getByRole("button", { name: "Upload document", exact: true })
     .click();
