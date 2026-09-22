@@ -12,6 +12,7 @@ from forge.approvals.policy import resolve_policy
 from forge.core.config import Settings
 from forge.core.errors import DomainError
 from forge.durability.store import BUILD, checkpoint
+from forge.knowledge.service import KnowledgeService
 from forge.model_router.base import ModelAdapter, ModelRequest
 from forge.model_router.factory import select_adapter
 from forge.model_router.pricing import snapshot
@@ -94,6 +95,9 @@ class RunService:
                 "Fallback requires queued execution of standard-agent-v1.",
                 409,
             )
+        await KnowledgeService(self.session).resolve(
+            organization_id, version.knowledge_document_ids
+        )
         tools = await ToolRegistry(self.session).resolve(organization_id, version.tool_version_ids)
         await resolve_policy(
             self.session,
@@ -187,6 +191,7 @@ class RunService:
                 "retry_base_seconds": settings.retry_base_seconds,
                 "provider": adapter.provider,
                 "tool_version_ids": [str(tool.id) for tool in tools],
+                "knowledge_document_ids": version.knowledge_document_ids,
                 "max_tool_calls": MAX_TOOL_CALLS,
                 "max_calls_per_turn": MAX_CALLS_PER_TURN,
                 "policy_boundary": "DETERMINISTIC_REFUND_V1",

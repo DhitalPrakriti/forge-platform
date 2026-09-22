@@ -23,6 +23,7 @@ export interface VersionInput {
   runtime_template_revision: string;
   runtime_config: { max_steps: number; max_runtime_seconds: number };
   budget_config: { max_cost_per_run_usd: string };
+  knowledge_document_ids?: string[];
   tool_version_ids: string[];
   policy_version_ids: string[];
   evaluation_suite_version_id: string | null;
@@ -110,7 +111,8 @@ export type ToolName =
   | "lookup_transactions"
   | "create_ticket"
   | "issue_refund"
-  | "inspect_python";
+  | "inspect_python"
+  | "search_documents";
 export interface Tool {
   id: string;
   organization_id: string;
@@ -185,4 +187,27 @@ export interface ModelHealth {
   probe_until: string | null;
   last_observed_at: string | null;
   last_error: string | null;
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  organization_id: string;
+  title: string;
+  filename: string;
+  format: string;
+  sha256: string;
+  character_count: number;
+  chunk_count: number;
+  page_count: number;
+  created_at: string;
+}
+export interface KnowledgeResult {
+  matches: {
+    document_id: string;
+    title: string;
+    chunk: number;
+    page: number | null;
+    excerpt: string;
+  }[];
+  note: string;
 }

@@ -5,6 +5,8 @@ export const runtime = "nodejs";
 const uuid = "[0-9a-fA-F-]{36}";
 const routes: Record<string, RegExp[]> = {
   GET: [
+    /^knowledge\/documents$/,
+    new RegExp(`^knowledge/documents/${uuid}$`),
     /^mcp\/servers$/,
     /^mcp\/servers\/[a-z][a-z0-9_-]{0,31}\/tools$/,
     /^policies$/,
@@ -20,6 +22,7 @@ const routes: Record<string, RegExp[]> = {
     new RegExp(`^runs/${uuid}(/events|/model-calls|/tool-calls)?$`),
   ],
   POST: [
+    /^knowledge\/(documents|search)$/,
     /^mcp\/tools$/,
     /^policies$/,
     new RegExp(`^approvals/${uuid}/(approve|deny)$`),
@@ -81,10 +84,39 @@ async function proxy(
       process.env.FORGE_API_URL || "http://127.0.0.1:8000",
     );
     upstream.search = request.nextUrl.search;
+    let body: string | undefined;
+    if (request.method !== "GET") {
+      if (path === "knowledge/documents" && request.body) {
+        const reader = request.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > 4_010_000) {
+            await reader.cancel();
+            return NextResponse.json(
+              {
+                error: {
+                  code: "DOCUMENT_TOO_LARGE",
+                  message: "Upload must be at most 3 MB.",
+                },
+              },
+              { status: 413 },
+            );
+          }
+          chunks.push(value);
+        }
+        body = Buffer.concat(chunks).toString("utf8");
+      } else {
+        body = await request.text();
+      }
+    }
     const result = await fetch(upstream, {
       method: request.method,
       headers,
-      body: request.method === "GET" ? undefined : await request.text(),
+      body,
       cache: "no-store",
       signal: AbortSignal.timeout(310_000),
     });

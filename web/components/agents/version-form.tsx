@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { DocumentPicker } from "../knowledge/document-picker";
 import { ToolCatalog } from "../tools/tool-catalog";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +26,7 @@ export function VersionForm({
   const form = useForm<VersionValues>({
     resolver: zodResolver(versionSchema),
     defaultValues: {
+      knowledge_document_ids: source?.knowledge_document_ids || [],
       policy_version_ids: source?.policy_version_ids || [],
       tool_version_ids: source?.tool_version_ids || [],
       version: "",
@@ -56,6 +58,7 @@ export function VersionForm({
           .split(/[\n,]/)
           .map((v) => v.trim())
           .filter(Boolean),
+        knowledge_document_ids: values.knowledge_document_ids || [],
         tool_version_ids: values.tool_version_ids,
         policy_version_ids: values.policy_version_ids,
         evaluation_suite_version_id:
@@ -66,6 +69,19 @@ export function VersionForm({
     onSuccess: (version) => {
       void client.invalidateQueries({ queryKey: [org, "versions", agentId] });
       router.push(`/agents/${agentId}/versions/${version.id}`);
+    },
+  });
+  const selectedDocuments =
+    useWatch({ control: form.control, name: "knowledge_document_ids" }) || [];
+  const enableKnowledge = useMutation({
+    mutationFn: () => api.registerTool(org, "search_documents"),
+    onSuccess: (tool) => {
+      form.setValue(
+        "tool_version_ids",
+        [...new Set([...form.getValues("tool_version_ids"), tool.id])],
+        { shouldDirty: true },
+      );
+      void client.invalidateQueries({ queryKey: [org, "tools"] });
     },
   });
   const selectedTools =
@@ -210,6 +226,54 @@ export function VersionForm({
             preserved when cloning.
           </div>
         </div>
+      </Card>
+      <Card
+        title="Knowledge (optional)"
+        subtitle="Choose up to 20 immutable documents this version may search. Leave empty for agents that only use your messages."
+      >
+        <DocumentPicker
+          org={org}
+          selected={selectedDocuments}
+          onChange={(ids) =>
+            form.setValue("knowledge_document_ids", ids, {
+              shouldDirty: true,
+              shouldValidate: true,
+            })
+          }
+        />
+        <div className="actions">
+          <Button asChild variant="outline">
+            <Link href="/knowledge" target="_blank" rel="noreferrer">
+              Upload documents
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={enableKnowledge.isPending}
+            onClick={() => enableKnowledge.mutate()}
+          >
+            Enable Search documents
+          </Button>
+        </div>
+        <ErrorNotice error={enableKnowledge.error} />
+        {selectedDocuments.length > 0 &&
+          !tools.data?.some(
+            (t) =>
+              t.name === "search_documents" &&
+              selectedTools.includes(t.id) &&
+              t.status === "ACTIVE",
+          ) && (
+            <p role="alert">
+              Enable the Search documents tool before saving these document
+              bindings. If disabled, re-enable it in Tool Hub.
+            </p>
+          )}
+        <p className="muted">
+          Uploads do not change existing versions. Clone a version to change its
+          documents. Search returns source passages; it does not create business
+          API tools.
+        </p>
       </Card>
       <Card
         title="Tool permissions"

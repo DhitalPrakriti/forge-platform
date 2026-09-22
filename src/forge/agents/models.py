@@ -54,6 +54,7 @@ class AgentVersion(Base):
     runtime_template_revision: Mapped[str] = mapped_column(String(100))
     runtime_config: Mapped[dict] = mapped_column(JSONB)
     budget_config: Mapped[dict] = mapped_column(JSONB)
+    knowledge_document_ids: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
     tool_version_ids: Mapped[list] = mapped_column(JSONB)
     policy_version_ids: Mapped[list] = mapped_column(JSONB)
     evaluation_suite_version_id: Mapped[UUID | None] = mapped_column(nullable=True)

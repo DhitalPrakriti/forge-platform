@@ -7,6 +7,13 @@ export const DEMO_TOOLS: {
   message: string;
 }[] = [
   {
+    name: "search_documents",
+    label: "Search documents",
+    description:
+      "Search only the workspace documents selected for this agent version.",
+    message: '/tool search_documents {"query":"opening hours"}',
+  },
+  {
     name: "inspect_python",
     label: "Python code inspection",
     description:

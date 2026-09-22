@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 
 from forge.api.approvals import router as approvals_router
 from forge.api.health import router
+from forge.api.knowledge import router as knowledge_router
 from forge.api.registry import router as registry_router
 from forge.api.runs import router as runs_router
 from forge.api.tools import router as tools_router
@@ -50,4 +51,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(runs_router, prefix="/api/v1")
     app.include_router(tools_router, prefix="/api/v1")
     app.include_router(approvals_router, prefix="/api/v1")
+    app.include_router(knowledge_router, prefix="/api/v1")
     return app

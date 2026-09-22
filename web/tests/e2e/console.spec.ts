@@ -658,3 +658,68 @@ test("fallback configuration survives immutable cloning", async ({ page }) => {
     "gpt-4.1-mini\ngemini-3.1-flash-lite",
   );
 });
+
+test("upload knowledge, preview sources, bind a version and search through Tool Hub", async ({
+  page,
+}, testInfo) => {
+  await workspace(page, "Knowledge workspace");
+  await page.getByRole("link", { name: "Knowledge", exact: true }).click();
+  await page.getByLabel("Document title").fill("Restaurant handbook");
+  await page
+    .getByLabel("Document file")
+    .setInputFiles({
+      name: "handbook.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from(
+        "# Opening hours\nMonday opening hours are 9am to 5pm. Reservations require the booking service.",
+      ),
+    });
+  await page
+    .getByRole("button", { name: "Upload document", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Saved");
+  await page.getByRole("checkbox", { name: /Restaurant handbook/ }).check();
+  await page.getByLabel("Search keywords").fill("opening hours");
+  await page.getByRole("button", { name: "Preview search" }).click();
+  await expect(page.locator("blockquote")).toContainText("9am to 5pm");
+  await page.screenshot({
+    path: testInfo.outputPath("knowledge.png"),
+    fullPage: true,
+  });
+  await page.goto("/agents/new");
+  await page.getByLabel("Agent name").fill("Restaurant assistant");
+  await page.getByLabel("Agent slug").fill("restaurant");
+  await page
+    .getByRole("button", { name: "Create agent & add version" })
+    .click();
+  await page.getByLabel("Version label").fill("knowledge-v1");
+  await page
+    .getByLabel("Goal", { exact: true })
+    .fill("Explain restaurant policies");
+  await page
+    .getByLabel("Instructions", { exact: true })
+    .fill(
+      "Use search_documents for business facts and cite the returned source.",
+    );
+  await page.getByLabel("Model identifier").fill("forge-fake-v1");
+  await page.getByRole("checkbox", { name: /Restaurant handbook/ }).check();
+  await page
+    .getByRole("button", { name: "Enable Search documents", exact: true })
+    .click();
+  await expect(
+    page.getByRole("checkbox", { name: /Search documents/ }),
+  ).toBeChecked();
+  await page.getByRole("button", { name: "Save immutable version" }).click();
+  await page.getByRole("link", { name: "Test version" }).click();
+  await page
+    .getByLabel("Message", { exact: true })
+    .fill('/tool search_documents {"query":"opening hours"}');
+  await page.getByRole("button", { name: "Run agent", exact: true }).click();
+  await expect(page).toHaveURL(/\/runs\/[0-9a-f-]+$/);
+  await expect(
+    page.getByText("COMPLETED", { exact: true }).first(),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText(/Monday opening hours are 9am/).first(),
+  ).toBeVisible();
+});

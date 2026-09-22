@@ -9,6 +9,7 @@ from forge.agents.repository import RegistryRepository
 from forge.agents.schemas import AgentCreate, AgentPatch, OrganizationCreate, VersionCreate
 from forge.approvals.policy import resolve_policy
 from forge.core.errors import DomainError
+from forge.knowledge.service import KnowledgeService
 from forge.tools.models import AgentTool
 from forge.tools.registry import ToolRegistry
 
@@ -75,6 +76,15 @@ class RegistryService:
             payload.policy_version_ids,
             required=any(t.name == "issue_refund" for t in tools),
         )
+        await KnowledgeService(self.session).resolve(
+            organization_id, payload.knowledge_document_ids
+        )
+        if payload.knowledge_document_ids and not any(t.name == "search_documents" for t in tools):
+            raise DomainError(
+                "KNOWLEDGE_TOOL_REQUIRED",
+                "Enable Search documents when selecting knowledge documents.",
+                422,
+            )
         config = payload.model_dump(mode="json")
         config["evaluation_suite_version_id"] = payload.evaluation_suite_version_id
         entity = AgentVersion(agent_id=agent_id, **config)

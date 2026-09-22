@@ -4,7 +4,11 @@ from forge.tools.models import Tool
 
 def decision(tool: Tool, definition: Definition) -> str:
     """Allowlist for low/medium-risk demos. Refunds use the versioned policy service."""
-    if tool.status != "ACTIVE" or tool.handler_type not in {"LOCAL_DEMO_V1", "LOCAL_STATIC_V1"}:
+    if tool.status != "ACTIVE" or tool.handler_type not in {
+        "LOCAL_DEMO_V1",
+        "LOCAL_STATIC_V1",
+        "LOCAL_KNOWLEDGE_V1",
+    }:
         return "DENY"
     if any(getattr(tool, key) != value for key, value in definition.metadata().items()):
         return "DENY"

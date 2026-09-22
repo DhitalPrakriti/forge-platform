@@ -55,6 +55,7 @@ export function ToolCatalog({
             {[
               "All",
               "Code review",
+              "Knowledge",
               "Customer service demos",
               "Connected capabilities",
             ].map((name) => (

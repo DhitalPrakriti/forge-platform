@@ -1,5 +1,7 @@
 import { request } from "./client";
 import type {
+  KnowledgeDocument,
+  KnowledgeResult,
   Agent,
   Policy,
   Approval,
@@ -22,6 +24,22 @@ const json = (body: unknown): RequestInit => ({
 });
 const id = encodeURIComponent;
 export const api = {
+  documents: (org: string, offset = 0) =>
+    request<KnowledgeDocument[]>(
+      `/knowledge/documents?limit=100&offset=${offset}`,
+      org,
+    ),
+  uploadDocument: (
+    org: string,
+    body: { title: string; filename: string; content_base64: string },
+  ) => request<KnowledgeDocument>("/knowledge/documents", org, json(body)),
+  searchDocuments: (org: string, document_ids: string[], query: string) =>
+    request<KnowledgeResult>(
+      "/knowledge/search",
+      org,
+      json({ document_ids, query }),
+    ),
+
   modelHealth: (org: string) => request<ModelHealth[]>("/models/health", org),
   mcpServers: (org: string) => request<{ name: string }[]>("/mcp/servers", org),
   discoverMcp: (org: string, server: string) =>

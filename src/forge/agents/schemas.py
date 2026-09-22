@@ -76,13 +76,19 @@ class VersionCreate(Schema):
     runtime_template_revision: Revision = "standard-agent-v1"
     runtime_config: RuntimeLimits = Field(default_factory=RuntimeLimits)
     budget_config: BudgetLimits = Field(default_factory=BudgetLimits)
+    knowledge_document_ids: list[UUID] = Field(default_factory=list, max_length=20)
     tool_version_ids: list[UUID] = Field(default_factory=list, max_length=100)
     policy_version_ids: list[UUID] = Field(default_factory=list, max_length=100)
     evaluation_suite_version_id: UUID | None = None
 
     @model_validator(mode="after")
     def unique_bindings(self):
-        for items in (self.fallback_models, self.tool_version_ids, self.policy_version_ids):
+        for items in (
+            self.fallback_models,
+            self.tool_version_ids,
+            self.policy_version_ids,
+            self.knowledge_document_ids,
+        ):
             if len(items) != len(set(items)):
                 raise ValueError("Duplicate dependency references are not allowed")
         if self.primary_model in self.fallback_models:

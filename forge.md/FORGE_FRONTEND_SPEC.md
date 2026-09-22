@@ -2420,3 +2420,7 @@ Current boundary: MCP discovery, registration, exact-version binding, approvals,
 ## Implemented tool catalog refinement — 2026-09-19
 
 Tool Hub and version permissions share a responsive searchable catalog with purpose/source filters, readable labels, usage and approval guidance, selected count/chips and selected-only view. Full aliases, UUIDs, revision fingerprints and schemas live in expandable technical details. Tool creation remains registration of installed built-ins or discovered MCP definitions; no arbitrary model-generated executable tools are implied. Refund controls are contextual. Existing immutable bindings and backend authorization remain authoritative. See `docs/TOOL_CATALOG_UX_SESSION.md` for exact scope and verification.
+
+## Implemented optional knowledge slice — 2026-09-22
+
+The Knowledge navigation entry provides PDF/text/Markdown upload, workspace-scoped paginated document selection and keyword-search preview with source passages. The version form binds up to 20 immutable documents and provides an explicit Enable Search documents action; Tool Hub also lists this built-in under Knowledge. Reference documents are optional. Technical UUID/hash metadata remains expandable. This does not generate business service integrations from uploaded documents. See `../docs/KNOWLEDGE_SESSION.md` for implementation limits and review order.

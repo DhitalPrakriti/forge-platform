@@ -7,7 +7,12 @@ from forge.agents.schemas import Schema
 
 class ToolRegister(Schema):
     name: Literal[
-        "lookup_customer", "lookup_transactions", "create_ticket", "issue_refund", "inspect_python"
+        "lookup_customer",
+        "lookup_transactions",
+        "create_ticket",
+        "issue_refund",
+        "inspect_python",
+        "search_documents",
     ]
     version: Literal["1.0.0"] = "1.0.0"
 

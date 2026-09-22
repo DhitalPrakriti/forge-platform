@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from forge.approvals.models import Approval
 from forge.approvals.policy import refund_decision, resolve_policy
 from forge.durability.models import RunControl
+from forge.knowledge.service import KnowledgeService
 from forge.runtime.events import record_event
 from forge.runtime.models import Run
 from forge.tools import mcp_client, mcp_registry
@@ -94,7 +95,7 @@ class ToolHub:
             and existing.status == "RUNNING"
             and tool is not None
             and definition is not None
-            and tool.handler_type in {"LOCAL_DEMO_V1", "LOCAL_STATIC_V1"}
+            and tool.handler_type in {"LOCAL_DEMO_V1", "LOCAL_STATIC_V1", "LOCAL_KNOWLEDGE_V1"}
             and tool.idempotency_supported
             and not failure
         )
@@ -259,14 +260,21 @@ class ToolHub:
                             raise ToolFailure("POLICY_DENIED")
                         authorized = True
                         if not is_mcp:
-                            result = await execute_builtin(
-                                name,
-                                normalized,
-                                self.session,
-                                run.organization_id,
-                                call.id,
-                                call.idempotency_key,
-                            )
+                            if name == "search_documents":
+                                result = await KnowledgeService(self.session).search(
+                                    run.organization_id,
+                                    run.execution_config.get("knowledge_document_ids", []),
+                                    normalized["query"],
+                                )
+                            else:
+                                result = await execute_builtin(
+                                    name,
+                                    normalized,
+                                    self.session,
+                                    run.organization_id,
+                                    call.id,
+                                    call.idempotency_key,
+                                )
                             validated = definition.output_model.model_validate(result).model_dump(
                                 mode="json"
                             )

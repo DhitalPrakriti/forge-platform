@@ -212,3 +212,11 @@ export FORGE_MODEL_PRICES='{"your-exact-model-id":{"provider":"openai","input":"
 Those example numbers are illustrative for custom IDs; verify their rates first. Rates are USD per million tokens. Run budgets stop further actions after observed estimates reach the threshold; **they are not billing caps**. Failed calls may have unknown charges, a single call may overshoot, and paid-tier estimates do not account for free credits, taxes, or external tool charges.
 
 Apply `uv run alembic upgrade head` with your configured database URL and restart API/worker. No new dependency is required. See [Phase 7 report](docs/PHASE_7_IMPLEMENTATION_REPORT.md) for all files, tests, limitations, and review order. Earlier phase sections above describe their original milestones.
+
+## Optional workspace knowledge
+
+Open **Knowledge** in the console to upload `.pdf`, `.txt`, or `.md` files. Preview keyword matches there, then create/clone an agent version, select its documents, and click **Enable Search documents**. Saved versions and source text are immutable. Uploading another file does not alter an existing agent.
+
+PostgreSQL stores extracted passages; `search_documents` returns up to five cited passages from only that version's selected documents. No Qdrant, embeddings, new Docker service, or MCP server is required. A pasted-code agent can leave knowledge empty. Business actions such as reservations still require a separate connected tool.
+
+Run `uv sync` and `uv run alembic upgrade head`, then restart API and worker. Limits: 3 MB/file, 200,000 extracted characters, 50 PDF pages, 20 documents/version. PDFs need selectable text and no password; OCR is not included. Text/Markdown must be UTF-8. Search uses English PostgreSQL full-text matching, not semantic similarity. See [knowledge implementation report](docs/KNOWLEDGE_SESSION.md).

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
+  BookOpen,
   Activity,
   ArrowUpRight,
   Bot,
@@ -22,6 +23,7 @@ const navigation = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/runs", label: "Runs", icon: Play },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/tools", label: "Tools", icon: Wrench },
   { href: "/workspace", label: "Workspace", icon: Settings2 },
 ];

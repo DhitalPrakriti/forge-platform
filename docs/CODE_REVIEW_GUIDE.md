@@ -355,3 +355,7 @@ Model-call records now also include SKIPPED routing attempts. Such an attempt is
 ## Tool catalog UX — 2026-09-19
 
 See `TOOL_CATALOG_UX_SESSION.md` for the file map, checks and walkthrough. Read `web/lib/tool-presentation.ts` → `components/tools/tool-catalog.tsx` → `components/agents/version-form.tsx` → `components/tools/tools-screen.tsx`. The helper supplies labels, not authorization. The catalog filters a loaded list while maintaining independently controlled selected UUIDs. Technical details preserve exact identities; friendly labels never replace API bindings. Workspace disable controls are shared across built-in/MCP tools and require confirmation. Review whether filtering preserves hidden selections, disabled clones can be corrected, and refund policy bindings remain accessible.
+
+## Optional knowledge — 2026-09-22
+
+Read `KNOWLEDGE_SESSION.md`. Follow `api/knowledge.py` → `knowledge/schemas.py` → `extraction.py` / `pdf_extract.py` → `service.py` / `models.py` → migration 0009. Then inspect `agents/service.py` (document binding), `runtime/service.py` (run snapshot) and `tools/hub.py` (trusted document selection). In the console follow `knowledge-screen.tsx` → `document-picker.tsx` → `version-form.tsx`. Review why uploading a document does not grant all agents access, why the model cannot supply document IDs, and why restaurant documents cannot make bookings by themselves.

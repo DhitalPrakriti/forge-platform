@@ -9,6 +9,7 @@ from forge.approvals import models as approval_models  # noqa: F401
 from forge.core.config import Settings
 from forge.db.base import Base
 from forge.durability import models as durability_models  # noqa: F401
+from forge.knowledge import models as knowledge_models  # noqa: F401
 from forge.model_router import models as model_health_models  # noqa: F401
 from forge.runtime import models as runtime_models  # noqa: F401 -- register runtime metadata
 from forge.tools import models as tool_models  # noqa: F401 -- register tool metadata
