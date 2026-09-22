@@ -17,6 +17,7 @@ import {
 } from "../ui/shared";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
+import { VersionRuns } from "../runs/version-runs";
 import { VersionForm } from "./version-form";
 export function CreateVersionScreen({
   agentId,
@@ -203,6 +204,11 @@ export function VersionDetailScreen({
               </p>
             </Card>
           </div>
+          <VersionRuns
+            key={`${workspace.id}-${versionId}`}
+            org={workspace.id}
+            versionId={versionId}
+          />
           <Card title="Version record">
             <JsonDetails value={value} />
             {["DRAFT", "STAGING", "APPROVED", "DEPRECATED"].includes(

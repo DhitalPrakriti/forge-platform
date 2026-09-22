@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 const uuid = "[0-9a-fA-F-]{36}";
 const routes: Record<string, RegExp[]> = {
   GET: [
+    new RegExp(`^agent-versions/${uuid}/runs$`),
     /^knowledge\/documents$/,
     new RegExp(`^knowledge/documents/${uuid}$`),
     /^mcp\/servers$/,

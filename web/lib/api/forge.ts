@@ -24,6 +24,11 @@ const json = (body: unknown): RequestInit => ({
 });
 const id = encodeURIComponent;
 export const api = {
+  versionRuns: (org: string, versionId: string, offset = 0) =>
+    request<Run[]>(
+      `/agent-versions/${id(versionId)}/runs?limit=20&offset=${offset}`,
+      org,
+    ),
   documents: (org: string, offset = 0) =>
     request<KnowledgeDocument[]>(
       `/knowledge/documents?limit=100&offset=${offset}`,

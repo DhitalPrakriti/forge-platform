@@ -11,6 +11,17 @@ class RunRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def version_runs(self, organization_id: UUID, version_id: UUID, limit: int, offset: int):
+        return list(
+            await self.session.scalars(
+                select(Run)
+                .where(Run.organization_id == organization_id, Run.agent_version_id == version_id)
+                .order_by(Run.created_at.desc(), Run.id.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+
     async def by_key(self, organization_id: UUID, key: str):
         return await self.session.scalar(
             select(Run).where(Run.organization_id == organization_id, Run.idempotency_key == key)

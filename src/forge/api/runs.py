@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.api.registry import Limit, Scope, require_development_registry
+from forge.api.registry import Limit, Offset, Scope, require_development_registry
 from forge.db.session import get_session
 from forge.durability.service import DurabilityService
 from forge.model_router import health
@@ -103,3 +103,10 @@ async def retry_run(
 @router.get("/models/health", response_model=list[ModelHealthRead])
 async def model_health(scope: Scope, service: Service):
     return await health.listing(service.session, scope)
+
+
+@router.get("/agent-versions/{version_id}/runs", response_model=list[RunRead])
+async def version_runs(
+    version_id: UUID, scope: Scope, service: Service, limit: Limit = 20, offset: Offset = 0
+):
+    return await service.version_runs(scope, version_id, limit, offset)

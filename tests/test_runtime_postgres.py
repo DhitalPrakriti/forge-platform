@@ -289,3 +289,21 @@ def test_followup_context_and_scope(client):
     body["agent_version_id"] = other_version["id"]
     denied = client.post("/api/v1/runs", headers=other_headers, json=body)
     assert denied.status_code == 404
+
+
+def test_version_run_history_scope_order_and_pagination(client):
+    headers, version = setup_version(client)
+    other_headers, other_version = setup_version(client)
+    path = f"/api/v1/agent-versions/{version['id']}/runs"
+    assert client.get(path, headers=headers).json() == []
+    first = post_run(client, headers, version, "First run").json()
+    headers["Idempotency-Key"] = uuid4().hex
+    second = post_run(client, headers, version, "Second run").json()
+    post_run(client, other_headers, other_version, "Other workspace")
+    result = client.get(path, headers=headers)
+    assert result.status_code == 200
+    assert [run["id"] for run in result.json()] == [second["id"], first["id"]]
+    assert client.get(path + "?limit=1&offset=1", headers=headers).json()[0]["id"] == first["id"]
+    assert client.get(path, headers=other_headers).status_code == 404
+    assert client.get(path + "?limit=101", headers=headers).status_code == 422
+    assert client.get(path + "?offset=-1", headers=headers).status_code == 422

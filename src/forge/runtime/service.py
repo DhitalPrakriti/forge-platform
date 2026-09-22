@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
+from forge.agents.repository import RegistryRepository
 from forge.approvals.policy import resolve_policy
 from forge.core.config import Settings
 from forge.core.errors import DomainError
@@ -31,6 +32,11 @@ class RunService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repository = RunRepository(session)
+
+    async def version_runs(self, organization_id: UUID, version_id: UUID, limit: int, offset: int):
+        if await RegistryRepository(self.session).version(organization_id, version_id) is None:
+            raise DomainError("VERSION_NOT_FOUND", "Version not found.", 404)
+        return await self.repository.version_runs(organization_id, version_id, limit, offset)
 
     async def get(self, organization_id: UUID, run_id: UUID) -> Run:
         run = await self.repository.run(organization_id, run_id)
