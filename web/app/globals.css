@@ -1687,3 +1687,15 @@ tbody tr:hover {
 .capability-card .button {
   white-space: normal;
 }
+
+.version-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.version-navigation .back-link {
+  margin-bottom: 0;
+}

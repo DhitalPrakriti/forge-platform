@@ -119,10 +119,19 @@ export function VersionDetailScreen({
   const value = version.data;
   return (
     <>
-      <Link href={`/agents/${agentId}`} className="back-link">
-        <ArrowLeft size={15} />
-        Back to agent
-      </Link>
+      <div className="version-navigation">
+        <Link href={`/agents/${agentId}`} className="back-link">
+          <ArrowLeft size={15} />
+          Back to agent
+        </Link>
+        {value && (
+          <LatestRunLink
+            key={`${workspace.id}-${versionId}`}
+            org={workspace.id}
+            versionId={versionId}
+          />
+        )}
+      </div>
       <ErrorNotice error={version.error} retry={() => void version.refetch()} />
       {version.isPending && <Loading />}
       {value && (
@@ -133,11 +142,6 @@ export function VersionDetailScreen({
             description="A saved configuration. Changes belong in a new version."
             action={
               <div className="actions">
-                <LatestRunLink
-                  key={`${workspace.id}-${versionId}`}
-                  org={workspace.id}
-                  versionId={versionId}
-                />
                 <Button asChild variant="outline">
                   <Link
                     href={`/agents/${agentId}/versions/new?from=${versionId}`}

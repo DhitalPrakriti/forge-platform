@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { History } from "lucide-react";
+import { Button } from "../ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/forge";
 
@@ -17,11 +19,23 @@ export function LatestRunLink({
   });
   if (runs.isError)
     return (
-      <button type="button" onClick={() => void runs.refetch()}>
+      <Button
+        variant="ghost"
+        size="sm"
+        type="button"
+        onClick={() => void runs.refetch()}
+      >
         Retry latest run link
-      </button>
+      </Button>
     );
   const latest = runs.data?.[0];
   if (!latest) return null;
-  return <Link href={`/runs/${latest.id}`}>View latest run →</Link>;
+  return (
+    <Button asChild variant="outline" size="sm">
+      <Link href={`/runs/${latest.id}`}>
+        <History size={16} aria-hidden="true" />
+        View latest run
+      </Link>
+    </Button>
+  );
 }
