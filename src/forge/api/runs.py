@@ -1,0 +1,112 @@
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from forge.api.registry import Limit, Offset, Scope, require_development_registry
+from forge.db.session import get_session
+from forge.durability.service import DurabilityService
+from forge.model_router import health
+from forge.model_router.base import ModelAdapter
+from forge.model_router.factory import adapter_for
+from forge.model_router.schemas import ModelHealthRead
+from forge.runtime.schemas import EventRead, ModelCallRead, RunCreate, RunRead
+from forge.runtime.service import RunService
+
+
+def get_adapter(request: Request) -> ModelAdapter:
+    return adapter_for(request.app.state.settings)
+
+
+def get_run_service(session: Annotated[AsyncSession, Depends(get_session)]) -> RunService:
+    return RunService(session)
+
+
+router = APIRouter(tags=["runs"], dependencies=[Depends(require_development_registry)])
+Service = Annotated[RunService, Depends(get_run_service)]
+Adapter = Annotated[ModelAdapter, Depends(get_adapter)]
+Key = Annotated[
+    str,
+    Header(alias="Idempotency-Key", min_length=1, max_length=200, pattern=r"^[A-Za-z0-9._:-]+$"),
+]
+
+
+@router.post(
+    "/runs",
+    response_model=RunRead,
+    status_code=202,
+    responses={
+        200: {"description": "Existing idempotent run"},
+        201: {"description": "Legacy inline run created"},
+    },
+)
+async def create_run(
+    payload: RunCreate,
+    scope: Scope,
+    key: Key,
+    service: Service,
+    adapter: Adapter,
+    request: Request,
+    response: Response,
+):
+    run, created = await service.execute(scope, payload, key, adapter, request.app.state.settings)
+    response.status_code = (
+        (202 if run.execution_config.get("execution_mode") == "queued" else 201) if created else 200
+    )
+    return run
+
+
+@router.get("/runs/{run_id}", response_model=RunRead)
+async def get_run(run_id: UUID, scope: Scope, service: Service):
+    return await service.get(scope, run_id)
+
+
+@router.get("/runs/{run_id}/events", response_model=list[EventRead])
+async def get_events(
+    run_id: UUID,
+    scope: Scope,
+    service: Service,
+    after: Annotated[int, Query(ge=-1)] = -1,
+    limit: Limit = 50,
+):
+    return await service.events(scope, run_id, after, limit)
+
+
+@router.get("/runs/{run_id}/model-calls", response_model=list[ModelCallRead])
+async def get_model_calls(run_id: UUID, scope: Scope, service: Service):
+    return await service.calls(scope, run_id)
+
+
+@router.post("/runs/{run_id}/cancel", response_model=RunRead, status_code=202)
+async def cancel_run(run_id: UUID, scope: Scope, service: Service):
+    return await DurabilityService(service.session).cancel(scope, run_id)
+
+
+@router.post("/runs/{run_id}/retry", response_model=RunRead, status_code=202)
+async def retry_run(
+    run_id: UUID,
+    scope: Scope,
+    key: Key,
+    service: Service,
+    adapter: Adapter,
+    request: Request,
+    response: Response,
+):
+    run, created = await DurabilityService(service.session).retry(
+        scope, run_id, key, adapter, request.app.state.settings
+    )
+    response.status_code = 202 if created else 200
+    return run
+
+
+@router.get("/models/health", response_model=list[ModelHealthRead])
+async def model_health(scope: Scope, service: Service):
+    return await health.listing(service.session, scope)
+
+
+@router.get("/agent-versions/{version_id}/runs", response_model=list[RunRead])
+async def version_runs(
+    version_id: UUID, scope: Scope, service: Service, limit: Limit = 20, offset: Offset = 0
+):
+    return await service.version_runs(scope, version_id, limit, offset)

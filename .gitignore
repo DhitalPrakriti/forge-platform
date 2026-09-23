@@ -1,0 +1,23 @@
+.venv/
+.tools/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+build/
+dist/
+*.egg-info/
+.DS_Store
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Personal specifications, learning notes, and session reports (local only).
+/docs/
+/forge.md/
